@@ -1,7 +1,7 @@
-import MIP.mipJob.JobMip;
+import MIP.mipDeterministic.MipD;
 import ilog.concert.IloException;
 import io.Reader;
-import model.InstanceJob;
+import model.Instance;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -13,11 +13,10 @@ public class Main {
 //        InstanceSimple instance= Reader.read(file);
 //        Mip mip=new Mip(instance);
 
-        File file=new File("dataset/jobInstance7.txt");
+        File file=new File("dataset/instance/instance");
 
-        InstanceJob instance= Reader.readCGInputNew(file);
-        JobMip mip=new JobMip(instance,true);
-
+        Instance instance= Reader.readInstance(file,1,0,3,20,2,1);
+        MipD mip=new MipD(instance,1);
 
         long runTime=System.currentTimeMillis();
         System.out.println("Starting branch and bound for "+instance.getName());
@@ -35,6 +34,7 @@ public class Main {
         }else{
             System.out.println("MIP infeasible!");
         }
+
 
     }
 }

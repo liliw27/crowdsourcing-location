@@ -38,7 +38,10 @@ public class Constants {
 
     public static final int speed=50;//(km/h)
 
-    public static final int deltaT=360;//min
+    public static final int deltaT=60;//min
+    public static boolean cut=false;
+    public static boolean ispredict=true;
+    public static boolean partialColumn=false;
 
     /**
      * Branch-and-bound configuration

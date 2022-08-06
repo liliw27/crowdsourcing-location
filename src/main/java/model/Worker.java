@@ -5,7 +5,7 @@ import lombok.Data;
 /**
  * @author Wang Li
  * @description
- * @date 9/14/21 10:42 AM
+ * @date 6/19/22 9:22 PM
  */
 @Data
 public class Worker {
@@ -16,8 +16,6 @@ public class Worker {
     private int lngO;
     private int latD;
     private int lngD;
-    private int earliestDeparture;
-    private int latestArrival;
-    private int drivingTimeMax;
+    private int capacity;
     private int travelTOD;
 }
