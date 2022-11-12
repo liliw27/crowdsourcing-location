@@ -463,7 +463,7 @@ public class ModelBuilder2nd {
                 //1. number of location n_k^\xi
                 double coe = coe0 * dataModel.getModelCoe()[1];
                 for (int i = 0; i < customerNum; i++) {
-                    obj.addTerm(coe, varsAssignIK[i][k][xi]);
+                    obj.addTerm(coe - coe0 * dataModel.getCustomers().get(i).getUnservedPenalty(), varsAssignIK[i][k][xi]);
                 }
                 //2. d_{1k}^\xi
 //                coe = coe0 * dataModel.getModelCoe()[2];
