@@ -13,6 +13,7 @@ import java.util.List;
 public class Scenario {
     private int index;
     private int[] isWorkerAvailable;
+    private List<Worker> availableWorkers;
     private int[] customerDemand;
     private double probability;
 }

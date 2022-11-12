@@ -12,6 +12,7 @@ import model.Station;
 import model.StationCandidate;
 import model.Worker;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
+import util.GlobalVariable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -325,7 +326,7 @@ public class Mip2ndStage {
 
                     }
                     travelCost.put(worker,cost);
-                    obj+=cost*365;
+                    obj+=cost* GlobalVariable.daysNum;
                 }
                 solution2Stage.setObj(obj*1.0/TotalSceNum);
                 expectedValue+=obj*(1.0/dataModel.getScenarios().size());

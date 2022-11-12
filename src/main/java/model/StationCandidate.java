@@ -15,6 +15,18 @@ public class StationCandidate {
     private int lng;
     private int capaLower;
     private int capaUpper;
-    private int fixedCost=100000;
-    private int capacityCost=10;
+    private int fixedCost=30;
+    private double capacityCost=0.1;
+    public int hashCode() {
+        return nodeIndex;
+    }
+
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof StationCandidate))
+            return false;
+        StationCandidate other = (StationCandidate) o;
+        return (this.nodeIndex == other.nodeIndex);
+    }
 }

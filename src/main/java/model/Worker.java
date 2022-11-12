@@ -2,6 +2,8 @@ package model;
 
 import lombok.Data;
 
+import java.util.Arrays;
+
 /**
  * @author Wang Li
  * @description
@@ -18,4 +20,23 @@ public class Worker {
     private int lngD;
     private int capacity;
     private int travelTOD;
+
+    public int hashCode() {
+        return 27 * indexO + 31 * indexD;
+    }
+
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof Worker))
+            return false;
+        Worker other = (Worker) o;
+        return (this.indexO == other.indexO && this.indexD == other.indexD);
+    }
+
+    public String toString() {
+        String s = "";
+        s = "Worker: " + this.index + "indexO: " + indexO + "indexD: " + indexD + "\n";
+        return s;
+    }
 }

@@ -15,4 +15,16 @@ public class Customer {
     private int lng;
     private int demandExpected;
     private int unservedPenalty=100;
+    public int hashCode() {
+        return nodeIndex;
+    }
+
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof Customer))
+            return false;
+        Customer other = (Customer) o;
+        return (this.nodeIndex == other.nodeIndex);
+    }
 }

@@ -1,6 +1,7 @@
 package MIP.mipDeterministic;
 
 import ilog.concert.IloException;
+import ilog.concert.IloIntVar;
 import ilog.cplex.IloCplex;
 import lombok.Data;
 import model.Customer;
@@ -11,6 +12,7 @@ import model.Solution2Stage;
 import model.StationCandidate;
 import model.Worker;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
+import util.GlobalVariable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,6 +42,7 @@ public class MipD {
     double[][][] varsAssignIKValues;
     double[][][] varsAssignSKValues;
     double[][] unServedValues;
+    double[][] taoValues;
     double[][][] zValues;
     //for travel time prediction, 35 in total
     double[][][][] thetaValues; //1. domain [0,1]
@@ -107,6 +110,7 @@ public class MipD {
         varsAssignSKValues = new double[stationNum][workerNum][scenarioNum];
         unServedValues = new double[customerNum][scenarioNum];
         zValues = new double[stationNum][workerNum][scenarioNum];
+        taoValues=new double[workerNum][scenarioNum];
         //for travel time prediction, 35 in total
         thetaValues = new double[customerNum][stationNum][workerNum][scenarioNum]; //1. domain [0,1]
         dmax1Values = new double[workerNum][scenarioNum]; //2. [0,1000sqart2]
@@ -165,8 +169,9 @@ public class MipD {
 
         if (mipDataD.cplex.solve() && (mipDataD.cplex.getStatus() == IloCplex.Status.Feasible || mipDataD.cplex.getStatus() == IloCplex.Status.Optimal)) {
             this.objectiveValue = (int) Math.round(mipDataD.cplex.getObjValue());// MathProgrammingUtil.doubleToInt(mipDataS.cplex.getObjValue());//(int)Math.round(mipDataS.cplex.getObjValue());
-
+            System.out.println("*************"+mipDataD.cplex.getObjValue());
             this.bestObjValue = (int) Math.round(mipDataD.cplex.getBestObjValue());
+            System.out.println(mipDataD.cplex.getBestObjValue());
             //this.printSolution();
             this.optimal = mipDataD.cplex.getStatus() == IloCplex.Status.Optimal;
             this.isFeasible = true;
@@ -243,6 +248,11 @@ public class MipD {
                         zValues[s][k][xi] = mipDataD.cplex.getValue(mipDataD.z[s][k][xi]);
                     }
                 }
+                for (int k = 0; k < workerNum; k++) {
+
+                        taoValues[k][xi] = mipDataD.cplex.getValue(mipDataD.tao[k][xi]);
+
+                }
 
                 //for travel time prediction, 35 in total
 
@@ -314,7 +324,7 @@ public class MipD {
 
                     }
                     travelCost.put(worker,cost);
-                    obj+=cost*365;
+                    obj+=cost* GlobalVariable.daysNum;
 
                 }
                 solution2Stage.setObj(obj*1.0/TotalSceNum);

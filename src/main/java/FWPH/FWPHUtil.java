@@ -7,33 +7,39 @@ import FWPH.model.SDMSolution;
 import MIP.mip2ndStage.Mip2ndStage;
 import MIP.mipDeterministic.MipD;
 import ilog.concert.IloException;
-import ilog.concert.IloLQNumExpr;
-import ilog.concert.IloLinearIntExpr;
 import ilog.concert.IloLinearNumExpr;
 import ilog.concert.IloNumExpr;
 import ilog.concert.IloNumVar;
-import ilog.concert.IloQuadNumExpr;
 import ilog.cplex.IloCplex;
+import locationAssignmentBAP.LocationAssignmentSolver;
+import locationAssignmentBAP.LocationAssignmentSolver2;
+import locationAssignmentBAP.model.LocationAssignment;
+import model.Customer;
 import model.Instance;
 import model.Scenario;
 import FWPH.model.SolutionValue;
-import model.Station;
+import model.StationCandidate;
+import model.Worker;
+import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
+import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
+import util.Util;
 
-import javax.sound.midi.Soundbank;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Wang Li
  * @description
  * @date 7/9/22 10:40 AM
  */
-public class Util {
-    public static FWPHSolution solveFWPH(FWPHInput fwphInput) throws IloException {
+public class FWPHUtil {
+    public static FWPHSolution solveFWPH(FWPHInput fwphInput) throws IloException, TimeLimitExceededException {
         List<Instance> instanceList = fwphInput.getInstanceList();
         //initialize lambda, x, z
-        FWPHSolution fwphSolutionInitial = Util.initial(instanceList);
+        FWPHSolution fwphSolutionInitial = FWPHUtil.initial(instanceList);
         double lambda[][][] = fwphSolutionInitial.getLambda();
         SolutionValue[] solutionValues = fwphSolutionInitial.getSolutionValues();
         List<SolutionValue>[] V = fwphSolutionInitial.getV();
@@ -42,8 +48,8 @@ public class Util {
         FWPHSolution fwphSolution = new FWPHSolution();
         double phi_k = 0;
         for (int k = 0; k < fwphInput.getKmax(); k++) {
-            System.out.println("iter====================================="+(k+1));
-            lambda = Util.updateLambda(lambda, solutionValues, z_k, fwphInput.getRou());
+            System.out.println("iter=====================================" + (k + 1));
+            lambda = FWPHUtil.updateLambda(lambda, solutionValues, z_k, fwphInput.getRou());
             for (int s = 0; s < z_k.length; s++) {
                 for (int t = 0; t < z_k[0].length; t++) {
                     z_kminus1[s][t] = z_k[s][t];
@@ -68,7 +74,7 @@ public class Util {
                 sdmInput.setXs(x0[xi]);
                 sdmInput.setRou(fwphInput.getRou());
                 sdmInput.setInstance(instanceList.get(xi));
-                sdmSolutions[xi] = Util.SDM(sdmInput);
+                sdmSolutions[xi] = FWPHUtil.SDM(sdmInput);
                 solutionValues[xi] = sdmSolutions[xi].getXY_s();
                 phi_k += fwphInput.getProbability()[xi] * sdmSolutions[xi].getPhi_s();
 
@@ -95,7 +101,7 @@ public class Util {
 
     public static boolean isTerminate(double[][] z_kminus1, SolutionValue[] solutionValues, double[] probability, double epsilon) {
         double gap = calculateGap(z_kminus1, solutionValues, probability);
-        System.out.println("gap==============================="+gap);
+        System.out.println("gap===============================" + gap);
         if (gap < epsilon) {
             return true;
         }
@@ -115,7 +121,7 @@ public class Util {
         return gap;
     }
 
-    public static SDMSolution SDM(SDMInput sdmInput) throws IloException {
+    public static SDMSolution SDM(SDMInput sdmInput) throws IloException, TimeLimitExceededException {
         //update z, XY, phi, and V
 
         int tmax = sdmInput.getTmax();
@@ -129,7 +135,14 @@ public class Util {
         SolutionValue solutionValue_t = new SolutionValue();
         for (int t = 0; t < tmax; t++) {
             lambdasNew = getNewLambda(lambda, sdmInput.getXs(), Z, rou);
-            SolutionValue solutionValue = solveInstance(sdmInput.getInstance(), lambdasNew);
+            sdmInput.getInstance().setLambda(lambdasNew);
+            LocationAssignment locationAssignment = new LocationAssignment(sdmInput.getInstance());
+//            LocationAssignmentSolver locationAssignmentSolver = new LocationAssignmentSolver(locationAssignment);
+//            SolutionValue solutionValue = locationAssignmentSolver.solveInstance();
+            LocationAssignmentSolver2 locationAssignmentSolver = new LocationAssignmentSolver2(locationAssignment);
+            SolutionValue solutionValue = locationAssignmentSolver.solveInstance();
+
+//            SolutionValue solutionValue = solveInstance(sdmInput.getInstance());
             solutionValueList.add(solutionValue);
             if (t == 1) {
                 phi_s = solutionValue.getObj();
@@ -174,14 +187,14 @@ public class Util {
                     expr.addTerm(a[i], solutionValueList.get(i).getX()[s][t]);
                 }
 
-                IloNumExpr expr1 =  cplex.prod(-2 * Z[s][t], expr);
-                IloNumExpr lqNumExpr=cplex.prod(expr, expr);
+                IloNumExpr expr1 = cplex.prod(-2 * Z[s][t], expr);
+                IloNumExpr lqNumExpr = cplex.prod(expr, expr);
 
-                obj0=lqNumExpr;
-                obj0=cplex.sum(obj0,expr1);
+                obj0 = lqNumExpr;
+                obj0 = cplex.sum(obj0, expr1);
             }
         }
-        obj0=cplex.sum(obj0,objLinear);
+        obj0 = cplex.sum(obj0, objLinear);
         cplex.addMinimize(obj0);
 
         //constraints
@@ -203,9 +216,9 @@ public class Util {
         }
         SolutionValue solutionValue_t = new SolutionValue();
         double[][] x = new double[lambda.length][lambda[0].length];
-        double obj1=0;
-        double obj2=0;
-        double obj3p=0;
+        double obj1 = 0;
+        double obj2 = 0;
+        double obj3p = 0;
         for (int i = 0; i < solutionValueList.size(); i++) {
             for (int s = 0; s < lambda.length; s++) {
                 for (int t = 0; t < lambda[0].length; t++) {
@@ -213,9 +226,9 @@ public class Util {
                     x[s][t] += av[i] * solutionValueList.get(i).getX()[s][t];
                 }
             }
-            obj1+=av[i]*solutionValueList.get(i).getObjFirst();
-            obj2+=av[i]*solutionValueList.get(i).getObjSecond();
-            obj3p+=av[i]*obj3[i];
+            obj1 += av[i] * solutionValueList.get(i).getObjFirst();
+            obj2 += av[i] * solutionValueList.get(i).getObjSecond();
+            obj3p += av[i] * obj3[i];
 
         }
         solutionValue_t.setX(x);
@@ -248,21 +261,26 @@ public class Util {
         return lambda;
     }
 
-    public static FWPHSolution initial(List<Instance> instanceList) throws IloException {
+    public static FWPHSolution initial(List<Instance> instanceList) throws IloException, TimeLimitExceededException {
         FWPHSolution fwphSolution = new FWPHSolution();
         double[][][] lambda = new double[instanceList.size()][instanceList.get(0).getStationCandidates().size()][instanceList.get(0).getType().length];
         SolutionValue[] XY = new SolutionValue[instanceList.size()];
         double phi = 0;//lower bound
         List<SolutionValue>[] V = new List[instanceList.size()];
-        for(int i=0;i<instanceList.size();i++){
-            V[i]=new ArrayList<>();
+        for (int i = 0; i < instanceList.size(); i++) {
+            V[i] = new ArrayList<>();
         }
         double[][] Z = new double[instanceList.get(0).getStationCandidates().size()][instanceList.get(0).getType().length];
         double[][] x = new double[instanceList.get(0).getStationCandidates().size()][instanceList.get(0).getType().length];
 
         for (int i = 0; i < instanceList.size(); i++) {
             Instance instance = instanceList.get(i);
-            SolutionValue solutionValue = solveInstance(instance, lambda[i]);
+            instance.setLambda(lambda[i]);
+            LocationAssignment locationAssignment = new LocationAssignment(instance);
+
+            LocationAssignmentSolver2 locationAssignmentSolver = new LocationAssignmentSolver2(locationAssignment);
+            SolutionValue solutionValue = locationAssignmentSolver.solveInstance();
+//            SolutionValue solutionValue = solveInstance(instance);
             V[i].add(solutionValue);
             XY[i] = solutionValue;
             if (i == 0) {
@@ -289,7 +307,7 @@ public class Util {
 
     public static SolutionValue solve2ndStage(Instance instance, double[][] x) throws IloException {
 
-        Mip2ndStage mip = new Mip2ndStage(instance,1, x);
+        Mip2ndStage mip = new Mip2ndStage(instance, 1, x);
         long runTime = System.currentTimeMillis();
         System.out.println("Starting branch and bound for " + instance.getName());
         mip.solve();
@@ -311,8 +329,7 @@ public class Util {
         return solutionValue;
     }
 
-    public static SolutionValue solveInstance(Instance instance, double[][] lam) throws IloException {
-        instance.setLambda(lam);
+    public static SolutionValue solveInstance(Instance instance) throws IloException {
         MipD mip = new MipD(instance, instance.getScenarios().size());
         long runTime = System.currentTimeMillis();
         System.out.println("Starting branch and bound for " + instance.getName());
@@ -326,9 +343,10 @@ public class Util {
                 xd[i][j] = x[i][j];
             }
         }
-//        double[][] y1=mip.getVarsAssignIKValues()[0];//allocationIK
-//        double[][]y2=mip.getVarsAssignSKValues()[0];//allocationSK
-//        double[] y3=mip.getUnServedValues()[0];//unServed
+        double[][][] y1 = mip.getVarsAssignIKValues();//allocationIK
+        double[][][] y2 = mip.getVarsAssignSKValues();//allocationSK
+        double[][] y3 = mip.getUnServedValues();//unServed
+        double[][] tao = mip.getTaoValues();
         double obj = mip.getBestObjValue();
         SolutionValue solutionValue = new SolutionValue();
         solutionValue.setX(xd);
@@ -338,7 +356,27 @@ public class Util {
         solutionValue.setObj(obj);
         solutionValue.setObjSecond(mip.getSolution().getSolution2Stages().get(0).getObj());
         solutionValue.setObjFirst(mip.getSolution().getSolution1stage().getObj());
+        double [] cost=new double[instance.getWorkers().size()];
+        for (int k = 0; k < instance.getWorkers().size(); k++) {
+            StationCandidate stationCandidate = new StationCandidate();
+            Worker worker = instance.getWorkers().get(k);
+            Set<Customer> customers = new HashSet<>();
+            if (MathProgrammingUtil.doubleToBoolean(tao[k][0])) {
+                for (int s = 0; s < instance.getStationCandidates().size(); s++) {
+                    if (MathProgrammingUtil.doubleToBoolean(y2[s][k][0])) {
+                        stationCandidate = instance.getStationCandidates().get(s);
+                    }
+                }
+                for (int i = 0; i < instance.getCustomers().size(); i++) {
+                    if (MathProgrammingUtil.doubleToBoolean(y1[i][k][0])) {
+                        customers.add(instance.getCustomers().get(i));
+                    }
+                }
+                cost[k]= Util.getCost(customers,worker,stationCandidate,instance);
+                System.out.println("============"+cost[k]);
+            }
 
+        }
         return solutionValue;
     }
 

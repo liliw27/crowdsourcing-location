@@ -7,6 +7,7 @@ package util;
  */
 public class Constants {
     public static double EPSILON = 0.000001;
+    public static double PRECISION = 0.0001;
 
     /**
      * Max runtime of CP model (in seconds);
@@ -19,7 +20,7 @@ public class Constants {
 
     public static final int columnNumMin = 500;
 
-    public static final int columnNumIte = 500;
+    public static final int columnNumIte = 1000;
 
     public static final int columnNumMax = 4000;
 
@@ -42,6 +43,9 @@ public class Constants {
     public static boolean cut=false;
     public static boolean ispredict=true;
     public static boolean partialColumn=false;
+
+    public static int totalPenalty=0;
+    public static double precisionForReducedCost=0.1;
 
     /**
      * Branch-and-bound configuration

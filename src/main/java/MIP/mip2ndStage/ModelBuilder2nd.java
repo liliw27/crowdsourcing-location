@@ -13,6 +13,7 @@ import model.Station;
 import model.StationCandidate;
 import model.Worker;
 import util.Constants;
+import util.GlobalVariable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +59,8 @@ public class ModelBuilder2nd {
         mipData2nd.cplex.setParam(IloCplex.IntParam.Threads, Constants.MAXTHREADS);
         mipData2nd.cplex.setParam(IloCplex.IntParam.NodeFileInd, 3);
         mipData2nd.cplex.setParam(IloCplex.IntParam.WorkMem, 4096);
+        mipData2nd.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Optimality,1e-1);
+
         mipData2nd.cplex.setOut(null); //Disable Cplex output
         return mipData2nd;
     }
@@ -455,7 +458,7 @@ public class ModelBuilder2nd {
        
         for (int xi = 0; xi < scenarioNum; xi++) {
             for (int k = 0; k < workerNum; k++) {
-                double coe0 = 365 * (dataModel.getScenarios().get(xi).getIsWorkerAvailable()[k] * 1.0) / (dataModel.getScenarios().size()*TotalSceNum * 1.0);
+                double coe0 = GlobalVariable.daysNum * (dataModel.getScenarios().get(xi).getIsWorkerAvailable()[k] * 1.0) / (dataModel.getScenarios().size()*TotalSceNum * 1.0);
 
                 //1. number of location n_k^\xi
                 double coe = coe0 * dataModel.getModelCoe()[1];
@@ -605,7 +608,7 @@ public class ModelBuilder2nd {
 
             }
             // Penalty for unserved customers
-            double coe0 = 365 * 1.0 / (dataModel.getScenarios().size()*TotalSceNum * 1.0);
+            double coe0 = GlobalVariable.daysNum * 1.0 / (dataModel.getScenarios().size()*TotalSceNum * 1.0);
             for (int i = 0; i < customerNum; i++) {
                 double coe = coe0 * dataModel.getCustomers().get(i).getUnservedPenalty();
                 obj.addTerm(coe, unServed[i][xi]);

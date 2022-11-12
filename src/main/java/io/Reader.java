@@ -6,6 +6,8 @@ import model.Customer;
 import model.Instance;
 import model.Scenario;
 import model.StationCandidate;
+import scala.collection.immutable.Stream;
+import util.Constants;
 import util.Util;
 
 import java.io.File;
@@ -121,7 +123,7 @@ public class Reader {
         }
 
         travelCostMatrix=calTravelTimeMatrix(workers,customers,stationCandidates);
-        scenarios=generateScenarios(scenarioNum, customers, numC,numW,random,lambdaW);
+        scenarios=generateScenarios(scenarioNum, customers,workers, numC,numW,random,lambdaW);
         instance.setScenarios(scenarios);
         instance.setWorkers(workers);
         instance.setCustomers(customers);
@@ -133,29 +135,36 @@ public class Reader {
         modelCoe[7]=0.025;
         modelCoe[3]=0.025;
         modelCoe[6]=0.025;
-        modelCoe[1]=0.01;
+        modelCoe[1]=0.010;
 //        modelCoe[8]=0.05;
 //        modelCoe[9]=0.05;
-        modelCoe[16]=0.05;
-        modelCoe[17]=0.05;
-        modelCoe[18]=0.05;
-        modelCoe[19]=0.05;
-        modelCoe[20]=0.02;
-        modelCoe[21]=0.02;
-        modelCoe[22]=0.02;
-        modelCoe[23]=0.02;
+        modelCoe[16]=0.0005;
+        modelCoe[17]=0.0005;
+        modelCoe[18]=0.0005;
+        modelCoe[19]=0.0005;
+        modelCoe[20]=0;//0.0002;
+        modelCoe[21]=0.0002;
+        modelCoe[22]=0;//0.0002;
+        modelCoe[23]=0.0002;
         instance.setModelCoe(modelCoe);
 
         int typeNum=2;
         int [] type=new int[2];
-        type[0]=300;
-        type[1]=800;
+        type[0]=200;
+        type[1]=400;
         instance.setType(type);
         double[][] lambda=new double[stationNum][typeNum];
         instance.setLambda(lambda);
+        Constants.totalPenalty=getTotalPenalty(customers);
         return instance;
     }
-
+    private static int getTotalPenalty(List<Customer> customers){
+        int totalpen=0;
+        for(Customer customer:customers){
+            totalpen+=customer.getUnservedPenalty();
+        }
+        return totalpen;
+    }
     private static int[][] calTravelTimeMatrix(List<Worker> workers, List<Customer> parcels, List<StationCandidate> stations) {
         int totalNodes=workers.size()*2+parcels.size()+stations.size();
         int[][] travelTimeMatrix=new int[totalNodes][totalNodes];
@@ -199,9 +208,11 @@ public class Reader {
         return travelTimeMatrix;
     }
 
-    private static List<Scenario> generateScenarios(int scenarioNum,List<Customer> customers, int numC,int numW,Random random,double lambdaW){
+    private static List<Scenario> generateScenarios(int scenarioNum,List<Customer> customers,List<Worker> workers, int numC,int numW,Random random,double lambdaW){
         List<Scenario> scenarios=new ArrayList<>();
+
         for(int i=0;i<scenarioNum;i++){
+            List<Worker> availableWorkers=new ArrayList<>();
             Scenario scenario=new Scenario();
             int[] isWorkerAvailable=new int[numW];
             int[] customerDemand=new int[numC];
@@ -209,6 +220,7 @@ public class Reader {
                 double ran=getRandom(random);
                 if(ran<lambdaW){
                     isWorkerAvailable[j]=1;
+                    availableWorkers.add(workers.get(j));
                 }else {
                     isWorkerAvailable[j]=0;
                 }
@@ -221,6 +233,7 @@ public class Reader {
             scenario.setIndex(i);
             scenario.setIsWorkerAvailable(isWorkerAvailable);
             scenario.setCustomerDemand(customerDemand);
+            scenario.setAvailableWorkers(availableWorkers);
             scenarios.add(scenario);
         }
         return scenarios;

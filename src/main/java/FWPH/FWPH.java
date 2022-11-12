@@ -2,16 +2,13 @@ package FWPH;
 
 import FWPH.model.FWPHInput;
 import FWPH.model.FWPHSolution;
-import MIP.mipDeterministic.MipD;
 import ilog.concert.IloException;
 import io.Reader;
 import model.Instance;
-import FWPH.model.SolutionValue;
+import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -21,11 +18,11 @@ import java.util.List;
  */
 public class FWPH {
     //Reference: SIAM J. OPTIM. BOLAND
-    public static void main(String[] args) throws FileNotFoundException, IloException {
+    public static void main(String[] args) throws FileNotFoundException, IloException, TimeLimitExceededException {
         File file = new File("dataset/instance/instance");
-        Instance instance = Reader.readInstance(file, 5, 0, 5, 20, 2, 1);
+        Instance instance = Reader.readInstance(file, 5, 0, 5, 10, 5, 1);
         //get instances for each scenario
-        List<Instance> instanceList = Util.getInstances(instance);
+        List<Instance> instanceList = FWPHUtil.getInstances(instance);
         FWPHInput fwphInput = new FWPHInput();
         fwphInput.setInstanceList(instanceList);
         double[] probability = new double[instanceList.size()];
@@ -34,7 +31,7 @@ public class FWPH {
             probability[i] = 1.0/instanceList.size();
         }
         fwphInput.setProbability(probability);
-        FWPHSolution fwphSolution=Util.solveFWPH(fwphInput);
+        FWPHSolution fwphSolution= FWPHUtil.solveFWPH(fwphInput);
     }
 }
 
