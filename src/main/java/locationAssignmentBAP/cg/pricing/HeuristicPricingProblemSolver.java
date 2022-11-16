@@ -56,6 +56,8 @@ public class HeuristicPricingProblemSolver extends AbstractPricingProblemSolver<
      */
     public HeuristicPricingProblemSolver(LocationAssignment dataModel, PricingProblem pricingProblem) {
         super(dataModel, pricingProblem);
+        incompatibleStations.addAll(dataModel.incompatibleStations);
+        fixedStations.addAll(dataModel.fixedStations);
         this.name = "HeuristicPricingProblemSolver";
     }
 
@@ -104,12 +106,12 @@ public class HeuristicPricingProblemSolver extends AbstractPricingProblemSolver<
         //所以i最多为 n - (k - c.size()) + 1
 
         for (int i = start; i <= n - (num - customers.size()); i++) {
-            if(customers.size()>=4){
-                int a=0;
+            if (customers.size() >= 4) {
+                int a = 0;
             }
             Customer customer = dataModel.instance.getCustomers().get(i);
-            Set<Customer> customerAddition=new HashSet<>(2);
-            if (!isCompatible(customers, customer,customerAddition)) {
+            Set<Customer> customerAddition = new HashSet<>(2);
+            if (!isCompatible(customers, customer, customerAddition)) {
                 continue;
             }
             customers.add(customer);
@@ -120,7 +122,7 @@ public class HeuristicPricingProblemSolver extends AbstractPricingProblemSolver<
         }
     }
 
-    private boolean isCompatible(Set<Customer> customers, Customer customer,Set<Customer> customerAddition) {
+    private boolean isCompatible(Set<Customer> customers, Customer customer, Set<Customer> customerAddition) {
         Set<Customer> customerSet = new HashSet<>(customers);
         if (incompatibleCustomers.contains(customer)) {
             return false;
@@ -190,7 +192,7 @@ public class HeuristicPricingProblemSolver extends AbstractPricingProblemSolver<
 
         } else {
             for (StationCandidate stationCandidate : dataModel.instance.getStationCandidates()) {
-                if(newColumns.size()>=Constants.columnNumIte){
+                if (newColumns.size() >= Constants.columnNumIte) {
                     break;
                 }
                 if (incompatibleStations.contains(stationCandidate)) {
@@ -202,15 +204,13 @@ public class HeuristicPricingProblemSolver extends AbstractPricingProblemSolver<
                     if (column != null) {
                         newColumns.add(column);
                     }
-                } else if(customers.size() < dataModel.instance.getWorkerCapacityNum()){
+                } else if (customers.size() < dataModel.instance.getWorkerCapacityNum()) {
                     try {
                         generateColumns(stationCandidate, 0, customers, newColumns);
                     } catch (StopMsgException e) {
                     }
                 }
             }
-
-
 
 
         }
@@ -237,7 +237,7 @@ public class HeuristicPricingProblemSolver extends AbstractPricingProblemSolver<
         }
         rc -= pricingProblem.dualCostsMap.get("stationCapConstraint")[stationCandidate.getIndex()] * demand;
         rc -= pricingProblem.dualWS[pricingProblem.worker.getIndex()][stationCandidate.getIndex()];
-        rc -= pricingProblem.dualCostsMap.get("oneRoutePerWorkerAtMost")[pricingProblem.worker.getIndex()];
+        rc -= pricingProblem.dualCostsMap.get("oneRoutePerWorkerAtMost")[pricingProblem.worker.getIndex()] * demand;
         return rc;
     }
 

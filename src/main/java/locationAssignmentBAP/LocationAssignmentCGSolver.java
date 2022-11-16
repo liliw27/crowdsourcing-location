@@ -41,9 +41,17 @@ public class LocationAssignmentCGSolver {
     List<PricingProblem> pricingProblems = new ArrayList<>();
     List<AssignmentColumn> solutionCG;
     int upperBound;
+    private double[][] fixedLocationSolution;
+    private boolean isFixedLocation;
+
     private double objectiveValue;
     public LocationAssignmentCGSolver(LocationAssignment locationAssignment) {
         this.locationAssignment = locationAssignment;
+    }
+    public LocationAssignmentCGSolver(LocationAssignment locationAssignment,double[][] fixedLocationSolution) {
+        this.locationAssignment = locationAssignment;
+        this.fixedLocationSolution=fixedLocationSolution;
+        isFixedLocation=true;
     }
 
     public Map<String, double[]> getDualCostsMap(){
@@ -65,7 +73,12 @@ public class LocationAssignmentCGSolver {
         if (locationAssignment.instance.getLambda() == null) {
             locationAssignment.instance.setLambda(new double[GlobalVariable.stationNum][GlobalVariable.typeNum]);
         }
-        Master master = new Master(locationAssignment, pricingProblems);
+        Master master;
+        if(isFixedLocation){
+            master  = new Master(locationAssignment, pricingProblems,fixedLocationSolution,isFixedLocation);
+        }else{
+           master = new Master(locationAssignment, pricingProblems);
+        }
 
         //Define which solvers to use for the pricing problem
         List<Class<? extends AbstractPricingProblemSolver<LocationAssignment, AssignmentColumn, PricingProblem>>> solvers = new ArrayList<> ();
@@ -97,6 +110,9 @@ public class LocationAssignmentCGSolver {
         objectiveValue=cg.getObjective();
         System.out.println("================ Solution ================");
         solutionCG = cg.getSolution();
+        for(AssignmentColumn assignmentColumn:solutionCG){
+            System.out.println(assignmentColumn);
+        }
         System.out.println("CG terminated with objective: " + cg.getObjective());
         System.out.println("Number of iterations: " + cg.getNumberOfIterations());
         System.out.println("Time spent on master: " + cg.getMasterSolveTime() + " time spent on pricing: " + cg.getPricingSolveTime());

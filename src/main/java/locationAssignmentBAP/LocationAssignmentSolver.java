@@ -11,7 +11,6 @@ import locationAssignmentBAP.cg.column.AssignmentColumn;
 import locationAssignmentBAP.cg.column.AssignmentColumn_true;
 import locationAssignmentBAP.cg.column.AssignmentColumn_virtual;
 import locationAssignmentBAP.cg.masterProblem.Master;
-import locationAssignmentBAP.cg.pricing.ExactPricingProblemSolver;
 import locationAssignmentBAP.cg.pricing.HeuristicPricingProblemSolver;
 import locationAssignmentBAP.cg.pricing.PricingProblem;
 import locationAssignmentBAP.model.LocationAssignment;
@@ -50,13 +49,19 @@ public class LocationAssignmentSolver {
     public double lowerBound;
     public BranchAndPrice bap;
     public Map<String, double[]> dualSolution;
-    public boolean isOptimal;
+    public boolean isOptimal=false;
+    private double[][] fixedLocationSolution;
+    private boolean isFixedLocation;
 
 
     public LocationAssignmentSolver(LocationAssignment locationAssignment) {
         this.locationAssignment = locationAssignment;
     }
-
+    public LocationAssignmentSolver(LocationAssignment locationAssignment, double[][] fixedLocationSolution) {
+        this.locationAssignment = locationAssignment;
+        this.fixedLocationSolution = fixedLocationSolution;
+        this.isFixedLocation = true;
+    }
     public SolutionValue solveInstance() {
         //Create Pricing problems
         List<PricingProblem> pricingProblems = new ArrayList<>();
@@ -70,8 +75,12 @@ public class LocationAssignmentSolver {
         if (locationAssignment.instance.getLambda() == null) {
             locationAssignment.instance.setLambda(new double[GlobalVariable.stationNum][GlobalVariable.typeNum]);
         }
-        Master master = new Master(locationAssignment, pricingProblems);
-
+        Master master;
+        if(isFixedLocation){
+            master  = new Master(locationAssignment, pricingProblems,fixedLocationSolution,isFixedLocation);
+        }else{
+            master = new Master(locationAssignment, pricingProblems);
+        }
         //Define which solvers to use for the pricing problem
         List<Class<? extends AbstractPricingProblemSolver<LocationAssignment, AssignmentColumn, PricingProblem>>> solvers = new ArrayList<>();
         solvers.add(HeuristicPricingProblemSolver.class);
@@ -92,9 +101,9 @@ public class LocationAssignmentSolver {
         BranchOnWorkerCustomerPair branchOnWorkerCustomerPair = new BranchOnWorkerCustomerPair(locationAssignment, pricingProblems);
 
         branchCreators.add(branchOnLocationVar);
-        branchCreators.add(branchOnVertexPair);
-        branchCreators.add(branchOnStationWorkerPair);
-        branchCreators.add(branchOnWorkerCustomerPair);
+//        branchCreators.add(branchOnVertexPair);
+//        branchCreators.add(branchOnStationWorkerPair);
+//        branchCreators.add(branchOnWorkerCustomerPair);
 
 
 //        Collections.singletonList(new BranchOnVertexPair(locationAssignment, pricingProblem))
@@ -110,7 +119,7 @@ public class LocationAssignmentSolver {
         new SimpleBAPLogger(bap, new File("./output/coloring.log"));
 
         //Solve the Graph Coloring problem through Branch-and-Price
-        bap.runBranchAndPrice(System.currentTimeMillis() + 120000L); //8000000L
+        bap.runBranchAndPrice(System.currentTimeMillis() + 180000L); //8000000L
 
 
         //Print solution:
@@ -153,7 +162,9 @@ public class LocationAssignmentSolver {
                 x[column_virtual.stationIndex][column_virtual.type] = 1;
             }
         }
-
+        for(Customer customer:locationAssignment.instance.getCustomers()){
+            objSecond+=customer.getUnservedPenalty();
+        }
 
 //        if(gap> Constants.EPSILON){
 //           throw new RuntimeException("the objective value are not coincident with the summation of the obj values of two stages, with gap:"+gap);

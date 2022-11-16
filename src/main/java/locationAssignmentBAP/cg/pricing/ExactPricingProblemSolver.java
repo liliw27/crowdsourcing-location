@@ -79,6 +79,20 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
         super(dataModel, pricingProblem);
         this.name = "ExactMatchingCalculator";
         this.buildModel();
+        for(StationCandidate stationCandidate:dataModel.incompatibleStations){
+            try {
+                v[stationCandidate.getIndex()].setUB(0);
+            } catch (IloException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for(StationCandidate stationCandidate:dataModel.fixedStations){
+            try {
+                v[stationCandidate.getIndex()].setLB(1);
+            } catch (IloException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     private void buildModel() {

@@ -12,6 +12,7 @@ import model.Scenario;
 import model.StationCandidate;
 import model.Worker;
 import org.jgrapht.util.VertexPair;
+import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
 
 import java.util.HashSet;
 import java.util.List;
@@ -114,6 +115,26 @@ public class Util {
         return locationVars;
     }
 
+    public static IloNumVar[][] getVar(double[][] fixedLocationSolution){
+        int stationNum=GlobalVariable.stationNum;
+        int typeNum=GlobalVariable.typeNum;
+        IloNumVar[][] locationVars=new IloNumVar[stationNum][typeNum];
+        try {
+            IloCplex cplex0 = new IloCplex();
+            for (int s = 0; s < stationNum; s++) {
+                for (int t = 0; t < typeNum; t++) {
+                    if(MathProgrammingUtil.doubleToBoolean(fixedLocationSolution[s][t])){
+                        locationVars[s][t] = cplex0.numVar(1, 1, "y_" + s + "_" + t);
+                    }else {
+                        locationVars[s][t] = cplex0.numVar(0, 0, "y_" + s + "_" + t);
+                    }
+                }
+            }
+        } catch (IloException e) {
+            e.printStackTrace();
+        }
+        return locationVars;
+    }
 //    public static List<AssignmentColumn> getInitialSolution(Instance instance, List<PricingProblem> pricingProblems) {
 //        List<AssignmentColumn> assignmentColumns = new ArrayList<>();
 //        int stationIndex = 0;

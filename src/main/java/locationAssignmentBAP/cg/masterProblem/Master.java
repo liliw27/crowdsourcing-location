@@ -57,6 +57,15 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
         locationVars = Util.getVar();
         masterData=this.buildModel();
     }
+    public Master(LocationAssignment dataModel, List<PricingProblem> pricingProblems,double[][] fixedLocationSolution,boolean isFixedLocation) {
+        super(dataModel, pricingProblems, OptimizationSense.MINIMIZE);
+        if(isFixedLocation){
+            locationVars = Util.getVar(fixedLocationSolution);
+        }else {
+            locationVars = Util.getVar();
+        }
+        masterData=this.buildModel();
+    }
 
     @Override
     protected LocationAssignmentMasterData buildModel() {
@@ -108,7 +117,7 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
             }
 
             for (int i = 0; i < customerNum; i++) {
-                oneVisitPerCustomerAtMost[i] = cplex.addRange(1, 1, "atMOVisitPerCustomer_" + i);
+                oneVisitPerCustomerAtMost[i] = cplex.addRange(0, 1, "atMOVisitPerCustomer_" + i);
             }
             for (int s = 0; s < stationNum; s++) {
                 stationCapConstraint[s] = cplex.addRange(-Double.MAX_VALUE, 0, "capacityConstraint_" + s);
@@ -119,7 +128,8 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
                 stationCapConstraint[s].setExpr(expr);
             }
             for (int k = 0; k < workerNum; k++) {
-                oneRoutePerWorkerAtMost[k] = cplex.addRange(0, 1, "atMORoutePerWorker_" + k);
+                int capacity=dataModel.instance.getWorkers().get(k).getCapacity();
+                oneRoutePerWorkerAtMost[k] = cplex.addRange(0, capacity, "atMORoutePerWorker_" + k);
             }
 
         } catch (IloException e) {
@@ -237,12 +247,10 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
                 }
                 //Set linear coefficient for station Capacity
                 int sConstraintCoe[] = new int[dataModel.instance.getStationCandidates().size()];
-
-
                 sConstraintCoe[column_true.stationCandidate.getIndex()] = column_true.demand;
                 //Set linear coefficient for worker One JobSimple At Most
                 int wConstraintCoe[] = new int[dataModel.instance.getWorkers().size()];
-                wConstraintCoe[column_true.worker.getIndex()] = 1;
+                wConstraintCoe[column_true.worker.getIndex()] = column_true.demand;
 
 
                 //Register column with objective

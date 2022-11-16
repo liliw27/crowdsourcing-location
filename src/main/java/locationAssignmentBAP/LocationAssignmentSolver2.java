@@ -12,6 +12,7 @@ import locationAssignmentBAP.cg.column.AssignmentColumn_virtual;
 import locationAssignmentBAP.cg.pricing.ColumnGenerator;
 import locationAssignmentBAP.cg.pricing.ColumnGeneratorManager;
 import locationAssignmentBAP.model.LocationAssignment;
+import model.Customer;
 import model.Instance;
 import model.StationCandidate;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
@@ -35,25 +36,48 @@ public class LocationAssignmentSolver2 {
     double upperBound = 0;
     Map<String, double[]> dualSolution;
     private final LocationAssignment locationAssignment;
+    private double[][] fixedLocationSolution;
+    private boolean isFixedLocation;
 
     public LocationAssignmentSolver2(LocationAssignment locationAssignment) {
         this.locationAssignment = locationAssignment;
     }
 
+    public LocationAssignmentSolver2(LocationAssignment locationAssignment, double[][] fixedLocationSolution) {
+        this.locationAssignment = locationAssignment;
+        this.fixedLocationSolution = fixedLocationSolution;
+        this.isFixedLocation = true;
+    }
+
     public SolutionValue solveInstance() throws IloException, TimeLimitExceededException {
-        SolutionValue solutionValue ;
+        SolutionValue solutionValue = new SolutionValue();
 
         //cg --> get lower bound, solution, and dual solution
-        LocationAssignmentCGSolver cgSolver = new LocationAssignmentCGSolver(locationAssignment);
+        LocationAssignmentCGSolver cgSolver;
+        if (isFixedLocation) {
+            cgSolver = new LocationAssignmentCGSolver(locationAssignment, fixedLocationSolution);
+
+        } else {
+            cgSolver = new LocationAssignmentCGSolver(locationAssignment);
+        }
         cgSolver.solveCG();
         lowerBound = cgSolver.getObjectiveValue();
         dualSolution = cgSolver.getDualCostsMap();
-        upperBound=cgSolver.upperBound;
-        LocationAssignmentSolver solver = new LocationAssignmentSolver(locationAssignment);
-        solutionValue = solver.solveInstance();
-        lowerBound = Math.max(lowerBound,solver.lowerBound);
+        upperBound = cgSolver.upperBound;
+        LocationAssignmentSolver solver;
+        if (isFixedLocation) {
+            solver = new LocationAssignmentSolver(locationAssignment, fixedLocationSolution);
+        } else {
+            solver = new LocationAssignmentSolver(locationAssignment);
+
+        }
+//        if (locationAssignment.instance.getCustomers().size() > 20) {
+            solutionValue = solver.solveInstance();
+            lowerBound = Math.max(lowerBound, solver.lowerBound);
 //        dualSolution = solver.dualSolution;
-        upperBound =  Math.min(upperBound,solver.upperBound);
+            upperBound = Math.min(upperBound, solver.upperBound);
+//        }
+
         if (solver.isOptimal) {
             return solutionValue;
         } else {
@@ -62,30 +86,43 @@ public class LocationAssignmentSolver2 {
             List<AssignmentColumn> columns = columnGenerator1.generateNewColumns();
 
             System.out.println("total columns number: " + columns.size());
-            TopK topK = new TopK();
-            PriorityQueue<AssignmentColumn> queue = topK.bottomK(10000, columns);
-            for (AssignmentColumn column : queue) {
-                solutionCGtrue.add(column);
+            List<AssignmentColumn> solution = new ArrayList<>();
+            if (columns.size() >= 100000) {
+                TopK topK = new TopK();
+                PriorityQueue<AssignmentColumn> queue = topK.bottomK(columns.size() / 10, columns);
+                for (AssignmentColumn column : queue) {
+                    solutionCGtrue.add(column);
+                }
+                //mip --> utilize solution to get the upper bound
+                if (isFixedLocation) {
+                    solution = solveMip(solutionCGtrue, true, fixedLocationSolution);
+                } else {
+                    solution = solveMip(solutionCGtrue, true);
+                }
             }
-            //mip --> utilize solution to get the upper bound
-            List<AssignmentColumn> solution=solveMip(solutionCGtrue,true);
+
             //filter the columns with reduced cost, associated with the obtained dual solution, less than the gap of upper and lower bounds
             double gap = upperBound - lowerBound;
             System.out.println("gap: " + gap + "upper: " + upperBound + "lower: " + lowerBound);
 
-            double g =Math.abs ((upperBound - lowerBound) / lowerBound);
-            System.out.println( "relative gap:" + g);
-            if(g>0.01){
+            double g = Math.abs((upperBound - lowerBound) / lowerBound);
+            System.out.println("relative gap:" + g);
+            if (g > 0.05) {
 
                 List<AssignmentColumn> columnsFiltered = new ArrayList<>();
-                for(AssignmentColumn assignmentColumn:columns){
-                    if(assignmentColumn.reducedCost<gap){
+                for (AssignmentColumn assignmentColumn : columns) {
+                    if (assignmentColumn.reducedCost < gap) {
                         columnsFiltered.add(assignmentColumn);
                     }
                 }
                 //mip again --> obtain the optimal solution
                 System.out.println("filtered columns number: " + columnsFiltered.size());
-                solution = solveMip(columnsFiltered,false);
+                if (isFixedLocation) {
+                    solution = solveMip(columnsFiltered, true, fixedLocationSolution);
+                } else {
+                    solution = solveMip(columnsFiltered, true);
+                }
+
             }
 
 
@@ -103,6 +140,9 @@ public class LocationAssignmentSolver2 {
                     x[column_virtual.stationIndex][column_virtual.type] = 1;
                 }
             }
+            for (Customer customer : locationAssignment.instance.getCustomers()) {
+                objSecond += customer.getUnservedPenalty();
+            }
             solutionValue.setObjFirst(objFirst);
             solutionValue.setObjSecond(objSecond);
             solutionValue.setObj(objFirst + objSecond);
@@ -111,14 +151,40 @@ public class LocationAssignmentSolver2 {
         return solutionValue;
     }
 
-    private List<AssignmentColumn> solveMip(List<AssignmentColumn> columns,boolean isterminateAdv) throws IloException {
+    private List<AssignmentColumn> solveMip(List<AssignmentColumn> columns, boolean isterminateAdv, double[][] fixedLocationSolution) throws IloException {
+        long runTime = System.currentTimeMillis();
+        System.out.println("Starting branch and bound for " + locationAssignment.instance.getName());
+        MipSP mipSP = new MipSP(locationAssignment.instance, columns, fixedLocationSolution);
+        if (isterminateAdv) {
+            mipSP.mipDataSP.cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.05);
+        } else {
+            mipSP.mipDataSP.cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.01);
+        }
+        mipSP.solve();
+        runTime = System.currentTimeMillis() - runTime;
+
+        if (mipSP.isFeasible()) {
+            System.out.println("Objective: " + mipSP.getObjectiveValue());
+            System.out.println("Runtime: " + runTime);
+            System.out.println("Is optimal: " + mipSP.isOptimal());
+            System.out.println("Bound: " + mipSP.getLowerBound());
+            System.out.println("Nodes: " + mipSP.getNrOfNodes());
+        } else {
+            throw new RuntimeException("MIP infeasible!");
+        }
+        upperBound = Math.min(mipSP.getObjectiveValue(), upperBound);
+//        lowerBound=Math.max(mipSP.getLowerBound(),lowerBound);
+        return mipSP.getSolution();
+    }
+
+    private List<AssignmentColumn> solveMip(List<AssignmentColumn> columns, boolean isterminateAdv) throws IloException {
         long runTime = System.currentTimeMillis();
         System.out.println("Starting branch and bound for " + locationAssignment.instance.getName());
         MipSP mipSP = new MipSP(locationAssignment.instance, columns);
-        if(isterminateAdv){
-            mipSP.mipDataSP.cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap,0.05);
-        }else {
-            mipSP.mipDataSP.cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap,0.01);
+        if (isterminateAdv) {
+            mipSP.mipDataSP.cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.05);
+        } else {
+            mipSP.mipDataSP.cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.01);
         }
         mipSP.solve();
         runTime = System.currentTimeMillis() - runTime;

@@ -150,8 +150,8 @@ public class Reader {
 
         int typeNum=2;
         int [] type=new int[2];
-        type[0]=200;
-        type[1]=400;
+        type[0]=100;
+        type[1]=200;
         instance.setType(type);
         double[][] lambda=new double[stationNum][typeNum];
         instance.setLambda(lambda);

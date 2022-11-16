@@ -2,6 +2,7 @@ package locationAssignmentBAP.bap;
 
 import locationAssignmentBAP.cg.column.AssignmentColumn;
 import locationAssignmentBAP.cg.column.AssignmentColumn_true;
+import locationAssignmentBAP.cg.column.AssignmentColumn_virtual;
 import locationAssignmentBAP.cg.masterProblem.Master;
 import locationAssignmentBAP.cg.pricing.PricingProblem;
 import locationAssignmentBAP.model.LocationAssignment;
@@ -35,6 +36,9 @@ public class BranchAndPrice extends AbstractBranchAndPrice<LocationAssignment, A
         this.warmStart(objectiveInitialSolution, initialSolution);
     }
 
+
+
+
     /**
      * Generates an artificial solution. Columns in the artificial solution are of high cost such that they never end up in the final solution
      * if a feasible solution exists, since any feasible solution is assumed to be cheaper than the artificial solution. The artificial solution is used
@@ -45,7 +49,7 @@ public class BranchAndPrice extends AbstractBranchAndPrice<LocationAssignment, A
     @Override
     protected List<AssignmentColumn> generateInitialFeasibleSolution(BAPNode<LocationAssignment, AssignmentColumn> node) {
 //        Set<AssignmentColumn> columnSet=new HashSet<>(node.getInitialColumns());
-        List<AssignmentColumn> columns=new ArrayList<>();
+        List<AssignmentColumn> columns = new ArrayList<>();
 //        for(AssignmentColumn column:incumbentSolution){
 //            if(column instanceof AssignmentColumn_true){
 //                AssignmentColumn_true column_true=(AssignmentColumn_true) column;
@@ -68,8 +72,8 @@ public class BranchAndPrice extends AbstractBranchAndPrice<LocationAssignment, A
 //                columns.add(assignmentColumn_true);
 //            }
 //        }
-        for(PricingProblem pricingProblem:pricingProblems){
-            AssignmentColumn_true assignmentColumn_true = new AssignmentColumn_true(pricingProblem,  true, "initial", 1000000,0, pricingProblem.worker, new HashSet<>(dataModel.instance.getCustomers()), dataModel.instance.getStationCandidates().get(0));
+        for (PricingProblem pricingProblem : pricingProblems) {
+            AssignmentColumn_true assignmentColumn_true = new AssignmentColumn_true(pricingProblem, true, "initial", 1000000, 0, pricingProblem.worker, new HashSet<>(dataModel.instance.getCustomers()), dataModel.instance.getStationCandidates().get(0));
             columns.add(assignmentColumn_true);
         }
         return columns;
@@ -84,11 +88,11 @@ public class BranchAndPrice extends AbstractBranchAndPrice<LocationAssignment, A
     @Override
     protected boolean isIntegerNode(BAPNode<LocationAssignment, AssignmentColumn> node) {
         // check whether the values of location variables are fractional
-        for (AssignmentColumn column : node.getSolution()) {
-            if (MathProgrammingUtil.isFractional(column.value)) {
-                return false;
+            for (AssignmentColumn column : node.getSolution()) {
+                if (column instanceof AssignmentColumn_virtual && MathProgrammingUtil.isFractional(column.value)) {
+                    return false;
+                }
             }
-        }
         return true;
     }
 }

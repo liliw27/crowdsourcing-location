@@ -61,7 +61,7 @@ public class ModelBuilder2nd {
         mipData2nd.cplex.setParam(IloCplex.IntParam.WorkMem, 4096);
         mipData2nd.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Optimality,1e-1);
 
-        mipData2nd.cplex.setOut(null); //Disable Cplex output
+//        mipData2nd.cplex.setOut(null); //Disable Cplex output
         return mipData2nd;
     }
 

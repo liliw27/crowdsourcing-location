@@ -20,7 +20,7 @@ public class FWPH {
     //Reference: SIAM J. OPTIM. BOLAND
     public static void main(String[] args) throws FileNotFoundException, IloException, TimeLimitExceededException {
         File file = new File("dataset/instance/instance");
-        Instance instance = Reader.readInstance(file, 5, 0, 5, 10, 5, 1);
+        Instance instance = Reader.readInstance(file, 20, 0, 5, 20, 10, 1);
         //get instances for each scenario
         List<Instance> instanceList = FWPHUtil.getInstances(instance);
         FWPHInput fwphInput = new FWPHInput();

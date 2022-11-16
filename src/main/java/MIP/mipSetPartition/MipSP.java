@@ -61,6 +61,16 @@ public class MipSP {
             e.printStackTrace();
         }
     }
+    public MipSP(Instance instance, List<AssignmentColumn> columns,double[][]fixedLocationSolution) {
+        this.dataModel = instance;
+//        this.columns=columns;
+        try {
+            modelBuilderSP = new ModelBuilderSP(dataModel,columns,fixedLocationSolution);
+            mipDataSP = modelBuilderSP.getILP();
+        } catch (IloException e) {
+            e.printStackTrace();
+        }
+    }
 
     public void solve() throws IloException {
 //        mipDataSP.cplex.exportModel("mip.lp");

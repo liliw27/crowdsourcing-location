@@ -24,8 +24,11 @@ import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
 import util.Util;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -37,6 +40,9 @@ import java.util.Set;
  */
 public class FWPHUtil {
     public static FWPHSolution solveFWPH(FWPHInput fwphInput) throws IloException, TimeLimitExceededException {
+        SimpleDateFormat sdf = new SimpleDateFormat();// 格式化时间
+        sdf.applyPattern("yyyy-MM-dd HH:mm:ss a");// a为am/pm的标记
+        Date date = new Date();// 获取当前时间
         List<Instance> instanceList = fwphInput.getInstanceList();
         //initialize lambda, x, z
         FWPHSolution fwphSolutionInitial = FWPHUtil.initial(instanceList);
@@ -47,8 +53,11 @@ public class FWPHUtil {
         double z_kminus1[][] = new double[z_k.length][z_k[0].length];
         FWPHSolution fwphSolution = new FWPHSolution();
         double phi_k = 0;
+        date = new Date();
+        System.out.println("现在时间：" + sdf.format(date)+ "== Start FWPH Iteration!!!");
         for (int k = 0; k < fwphInput.getKmax(); k++) {
-            System.out.println("iter=====================================" + (k + 1));
+            date = new Date();
+            System.out.println("现在时间：" + sdf.format(date)+ "== start iter=====================================" + (k + 1));
             lambda = FWPHUtil.updateLambda(lambda, solutionValues, z_k, fwphInput.getRou());
             for (int s = 0; s < z_k.length; s++) {
                 for (int t = 0; t < z_k[0].length; t++) {
@@ -80,7 +89,6 @@ public class FWPHUtil {
 
                 for (int s = 0; s < z_kminus1.length; s++) {
                     for (int t = 0; t < z_kminus1[0].length; t++) {
-
                         z_k[s][t] += fwphInput.getProbability()[xi] * sdmSolutions[xi].getXY_s().getX()[s][t];
                     }
                 }
@@ -96,6 +104,8 @@ public class FWPHUtil {
         fwphSolution.setLambda(lambda);
         fwphSolution.setSolutionValues(solutionValues);
         fwphSolution.setPhi(phi_k);
+        date = new Date();
+        System.out.println("现在时间：" + sdf.format(date)+ "== End FWPH Iteration!!!");
         return fwphSolution;
     }
 
@@ -115,6 +125,7 @@ public class FWPHUtil {
                 for (int t = 0; t < z_kminus1[s].length; t++) {
                     gap += probability[xi] * (z_kminus1[s][t] - solutionValues[xi].getX()[s][t]) * (z_kminus1[s][t] - solutionValues[xi].getX()[s][t]);
                 }
+                System.out.println(Arrays.toString(z_kminus1[s])+" "+Arrays.toString(solutionValues[xi].getX()[s]));
             }
         }
         gap = Math.sqrt(gap);
@@ -141,8 +152,7 @@ public class FWPHUtil {
 //            SolutionValue solutionValue = locationAssignmentSolver.solveInstance();
             LocationAssignmentSolver2 locationAssignmentSolver = new LocationAssignmentSolver2(locationAssignment);
             SolutionValue solutionValue = locationAssignmentSolver.solveInstance();
-
-//            SolutionValue solutionValue = solveInstance(sdmInput.getInstance());
+//            solutionValue = solveInstance(sdmInput.getInstance());
             solutionValueList.add(solutionValue);
             if (t == 1) {
                 phi_s = solutionValue.getObj();
@@ -250,18 +260,24 @@ public class FWPHUtil {
     }
 
     public static double[][][] updateLambda(double[][][] lambda, SolutionValue[] solutionValues, double z[][], double rou) {
-
+        System.out.println("update lambda:");
         for (int i = 0; i < lambda.length; i++) {
             for (int j = 0; j < lambda[i].length; j++) {
                 for (int k = 0; k < lambda[i][j].length; k++) {
                     lambda[i][j][k] = lambda[i][j][k] + rou * (solutionValues[i].getX()[j][k] - z[j][k]);
                 }
+                System.out.println(Arrays.toString(lambda[i][j]));
             }
         }
         return lambda;
     }
 
     public static FWPHSolution initial(List<Instance> instanceList) throws IloException, TimeLimitExceededException {
+        SimpleDateFormat sdf = new SimpleDateFormat();// 格式化时间
+        sdf.applyPattern("yyyy-MM-dd HH:mm:ss a");// a为am/pm的标记
+        Date date = new Date();// 获取当前时间
+        System.out.println("现在时间：" + sdf.format(date)+ "== Initial Start!");
+
         FWPHSolution fwphSolution = new FWPHSolution();
         double[][][] lambda = new double[instanceList.size()][instanceList.get(0).getStationCandidates().size()][instanceList.get(0).getType().length];
         SolutionValue[] XY = new SolutionValue[instanceList.size()];
@@ -274,19 +290,34 @@ public class FWPHUtil {
         double[][] x = new double[instanceList.get(0).getStationCandidates().size()][instanceList.get(0).getType().length];
 
         for (int i = 0; i < instanceList.size(); i++) {
+            date = new Date();
+            System.out.println("现在时间：" + sdf.format(date)+ "== Start solving Initial solution of instance: "+i);// 输出已经格式化的现在时间（24小时制）
             Instance instance = instanceList.get(i);
             instance.setLambda(lambda[i]);
             LocationAssignment locationAssignment = new LocationAssignment(instance);
-
             LocationAssignmentSolver2 locationAssignmentSolver = new LocationAssignmentSolver2(locationAssignment);
+            date = new Date();
+            System.out.println("现在时间：" + sdf.format(date)+ "== Start solving Initial solution of instance: "+i +"! 1st stage + 2nd stage!");
             SolutionValue solutionValue = locationAssignmentSolver.solveInstance();
-//            SolutionValue solutionValue = solveInstance(instance);
+            date = new Date();
+            System.out.println("现在时间：" + sdf.format(date)+ "== End at solving Initial solution of instance: "+i +"! 1st stage + 2nd stage!");
+
+//          SolutionValue solutionValue = solveInstance(instance);
+
             V[i].add(solutionValue);
             XY[i] = solutionValue;
             if (i == 0) {
                 x = solutionValue.getX();
             } else if (i > 0) {
-                SolutionValue solutionValue1 = solve2ndStage(instance, x);
+                date = new Date();
+                System.out.println("现在时间：" + sdf.format(date)+ "== Start solving Initial solution of instance: "+i +" Only 2nd stage!");
+                LocationAssignment locationAssignment2 = new LocationAssignment(instance,x);
+                LocationAssignmentSolver2 locationAssignmentSolver2ndS = new LocationAssignmentSolver2(locationAssignment2,x);
+               SolutionValue solutionValue1 = locationAssignmentSolver2ndS.solveInstance();
+//                               SolutionValue solutionValue1 = solve2ndStage(instance, x);
+
+                date = new Date();
+                System.out.println("现在时间：" + sdf.format(date)+ "== End at solving Initial solution of instance: "+i +" Only 2nd stage!");
                 V[i].add(solutionValue1);
             }
             phi += instance.getScenarios().get(0).getProbability() * solutionValue.getObj();
@@ -301,12 +332,13 @@ public class FWPHUtil {
         fwphSolution.setV(V);
         fwphSolution.setSolutionValues(XY);
         fwphSolution.setZ(Z);
+        date = new Date();
+        System.out.println("现在时间：" + sdf.format(date)+ "== Initial End!");
         return fwphSolution;
     }
 
 
     public static SolutionValue solve2ndStage(Instance instance, double[][] x) throws IloException {
-
         Mip2ndStage mip = new Mip2ndStage(instance, 1, x);
         long runTime = System.currentTimeMillis();
         System.out.println("Starting branch and bound for " + instance.getName());
@@ -322,10 +354,10 @@ public class FWPHUtil {
 //        solutionValue.setY1(y1);
 //        solutionValue.setY2(y2);
 //        solutionValue.setY3(y3);
-        solutionValue.setObj(obj);
+        ;
         solutionValue.setObjSecond(mip.getSolution().getSolution2Stages().get(0).getObj());
         solutionValue.setObjFirst(mip.getSolution().getSolution1stage().getObj());
-
+        solutionValue.setObj(solutionValue.getObjFirst() + solutionValue.getObjSecond());
         return solutionValue;
     }
 
@@ -354,9 +386,10 @@ public class FWPHUtil {
 //        solutionValue.setY2(y2);
 //        solutionValue.setY3(y3);
         solutionValue.setObj(obj);
-        solutionValue.setObjSecond(mip.getSolution().getSolution2Stages().get(0).getObj());
         solutionValue.setObjFirst(mip.getSolution().getSolution1stage().getObj());
-        double [] cost=new double[instance.getWorkers().size()];
+        solutionValue.setObjSecond( mip.getSolution().getSolution2Stages().get(0).getObj());
+
+        double[] cost = new double[instance.getWorkers().size()];
         for (int k = 0; k < instance.getWorkers().size(); k++) {
             StationCandidate stationCandidate = new StationCandidate();
             Worker worker = instance.getWorkers().get(k);
@@ -372,11 +405,13 @@ public class FWPHUtil {
                         customers.add(instance.getCustomers().get(i));
                     }
                 }
-                cost[k]= Util.getCost(customers,worker,stationCandidate,instance);
-                System.out.println("============"+cost[k]);
+                cost[k] = Util.getCost(customers, worker, stationCandidate, instance);
+                System.out.println("============" + cost[k]);
+
             }
 
         }
+
         return solutionValue;
     }
 

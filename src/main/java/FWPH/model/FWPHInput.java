@@ -14,7 +14,7 @@ import java.util.List;
 public class FWPHInput {
     List<Instance> instanceList ;
     double[] probability;
-    double rou=1000;
+    double rou=100;
     double alpha=1;
     double epsilon=0.01;
     int kmax=100;

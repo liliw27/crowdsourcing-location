@@ -13,7 +13,7 @@ import java.util.Set;
  * @description
  * @date 2022/10/28 20:32
  */
-public class AssignmentColumn_true extends AssignmentColumn{
+public class AssignmentColumn_true extends AssignmentColumn {
 
     public final double cost;
     public final int demand;
@@ -41,14 +41,15 @@ public class AssignmentColumn_true extends AssignmentColumn{
         this.customers = customers;
         this.stationCandidate = stationCandidate;
     }
-    public AssignmentColumn_true(PricingProblem associatedPricingProblem, boolean isArtificial, String creator, double cost, int demand, Worker worker, Set<Customer> customers, StationCandidate stationCandidate,double reducedCost) {
+
+    public AssignmentColumn_true(PricingProblem associatedPricingProblem, boolean isArtificial, String creator, double cost, int demand, Worker worker, Set<Customer> customers, StationCandidate stationCandidate, double reducedCost) {
         super(associatedPricingProblem, isArtificial, creator);
         this.cost = cost;
         this.demand = demand;
         this.worker = worker;
         this.customers = customers;
         this.stationCandidate = stationCandidate;
-        this.reducedCost=reducedCost;
+        this.reducedCost = reducedCost;
     }
 
     @Override
@@ -112,11 +113,11 @@ public class AssignmentColumn_true extends AssignmentColumn{
 
     @Override
     public String toString() {
-        String string="Value: "+this.value+ " worker:"+worker.getIndex()+"; customers:";
-        for(Customer customer:customers){
-            string+=customer.getIndex()+",";
+        String string = "Value: " + this.value + "ValueBest: " + this.valueBest + " worker:" + worker.getIndex() + "; customers:";
+        for (Customer customer : customers) {
+            string += customer.getIndex() + ",";
         }
-        string+="; station:"+stationCandidate.getIndex();
+        string += "; station:" + stationCandidate.getIndex();
         return string;
     }
 
