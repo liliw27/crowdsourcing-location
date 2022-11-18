@@ -107,6 +107,6 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback{
         }
         long time=System.currentTimeMillis()-currentT;
         System.out.println("cut generation time: "+time);
-        executor.shutdownNow();
+//        executor.shutdownNow();
     }
 }

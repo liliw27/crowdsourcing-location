@@ -161,10 +161,10 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
             double timeRemaining = Math.max(1, (timeLimit - System.currentTimeMillis()) / 1000.0);
             masterData.cplex.setParam(IloCplex.DoubleParam.TiLim, timeRemaining); //set time limit in seconds
             //Potentially export the model
-            if (config.EXPORT_MODEL) {
-                masterData.cplex.exportModel(config.EXPORT_MASTER_DIR + "master_" + this.getIterationCount() + ".lp");
-            }
-            exportModel("master_" + this.getIterationCount() + ".lp");
+//            if (config.EXPORT_MODEL) {
+//                masterData.cplex.exportModel(config.EXPORT_MASTER_DIR + "master_" + this.getIterationCount() + ".lp");
+//            }
+//            exportModel("master_" + this.getIterationCount() + ".lp");
             //Solve the model
             if (!masterData.cplex.solve() || masterData.cplex.getStatus() != IloCplex.Status.Optimal) {
                 if (masterData.cplex.getCplexStatus() == IloCplex.CplexStatus.AbortTimeLim) //Aborted due to time limit
