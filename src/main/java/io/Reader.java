@@ -13,6 +13,7 @@ import util.Util;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -210,31 +211,43 @@ public class Reader {
 
     private static List<Scenario> generateScenarios(int scenarioNum,List<Customer> customers,List<Worker> workers, int numC,int numW,Random random,double lambdaW){
         List<Scenario> scenarios=new ArrayList<>();
-
+        double prob=1.0/scenarioNum;
         for(int i=0;i<scenarioNum;i++){
             List<Worker> availableWorkers=new ArrayList<>();
             Scenario scenario=new Scenario();
             int[] isWorkerAvailable=new int[numW];
             int[] customerDemand=new int[numC];
-            for(int j=0;j<numW;j++){
-                double ran=getRandom(random);
-                if(ran<lambdaW){
-                    isWorkerAvailable[j]=1;
-                    availableWorkers.add(workers.get(j));
-                }else {
-                    isWorkerAvailable[j]=0;
-                }
-            }
+            int[] workerCapacity=new int[numW];
+            Arrays.fill(isWorkerAvailable,1);
+            availableWorkers.addAll(workers);
+//            for(int j=0;j<numW;j++){
+//                double ran=getRandom(random);
+//                if(ran<lambdaW){
+//                    isWorkerAvailable[j]=1;
+//                    availableWorkers.add(workers.get(j));
+//                }else {
+//                    isWorkerAvailable[j]=0;
+//                }
+//            }
+
             for(int j=0;j<numC;j++){
                 double ran=getRandom(random);
                 customerDemand[j]=(int)(customers.get(j).getDemandExpected()*ran);
             }
+            for(int j=0;j<numW;j++){
+                double ran=getRandom(random);
+                workerCapacity[j]=(int)(workers.get(j).getCapacity()*ran);
+            }
+
 
             scenario.setIndex(i);
             scenario.setIsWorkerAvailable(isWorkerAvailable);
             scenario.setCustomerDemand(customerDemand);
             scenario.setAvailableWorkers(availableWorkers);
+            scenario.setWorkerCapacity(workerCapacity);
+           scenario.setProbability(prob);
             scenarios.add(scenario);
+
         }
         return scenarios;
     }
