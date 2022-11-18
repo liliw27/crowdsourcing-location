@@ -27,4 +27,5 @@ public class Instance {
     private String name;
     private double[][] lambda;
     private int[] type;
+    private boolean isMultipleCut=false;
 }
