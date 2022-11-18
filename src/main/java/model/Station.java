@@ -9,7 +9,7 @@ import lombok.Data;
  */
 @Data
 public class Station extends StationCandidate {
-   private int capacity;
+   private double capacity;
    public int hashCode() {
       return this.getNodeIndex();
    }
@@ -21,5 +21,11 @@ public class Station extends StationCandidate {
          return false;
       StationCandidate other = (StationCandidate) o;
       return (this.getNodeIndex() == other.getNodeIndex());
+   }
+
+   public String toString(){
+      String s = "Station: " + this.getIndex() +"capacity: " +capacity+"\n";
+      return s;
+
    }
 }

@@ -15,7 +15,7 @@ public class StationCandidate {
     private int lng;
     private int capaLower;
     private int capaUpper;
-    private int fixedCost=300;
+    private int fixedCost=0;
     private double capacityCost=1;
     public int hashCode() {
         return nodeIndex;
@@ -28,5 +28,10 @@ public class StationCandidate {
             return false;
         StationCandidate other = (StationCandidate) o;
         return (this.nodeIndex == other.nodeIndex);
+    }
+    public String toString(){
+            String s = "StationCandidate: " + this.index +"\n";
+            return s;
+
     }
 }

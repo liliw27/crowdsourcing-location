@@ -15,5 +15,6 @@ public class Scenario {
     private int[] isWorkerAvailable;
     private List<Worker> availableWorkers;
     private int[] customerDemand;
+    private int[] workerCapacity;
     private double probability;
 }
