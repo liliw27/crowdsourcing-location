@@ -14,7 +14,7 @@ public class Customer {
     private int lat;
     private int lng;
     private int demandExpected;
-    private int unservedPenalty=100;
+    private double unservedPenalty=7.5;
     public int hashCode() {
         return nodeIndex;
     }

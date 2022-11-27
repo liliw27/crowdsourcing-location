@@ -45,7 +45,8 @@ public class Constants {
     public static boolean partialColumn=false;
 
     public static int totalPenalty=0;
-    public static double precisionForReducedCost=0.1;
+    public static double precisionForReducedCost=0.001;
+    public static double cutGenerationPrecision=0.001;//3
 
     /**
      * Branch-and-bound configuration

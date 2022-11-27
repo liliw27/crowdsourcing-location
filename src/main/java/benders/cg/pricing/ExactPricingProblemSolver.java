@@ -1,6 +1,5 @@
 package benders.cg.pricing;
 
-import benders.cg.column.AssignmentColumn;
 import benders.cg.column.AssignmentColumn_true;
 import benders.model.LocationAssignment;
 import ilog.concert.IloConstraint;
@@ -16,7 +15,6 @@ import model.Scenario;
 import model.StationCandidate;
 import model.Worker;
 import org.jgrapht.util.VertexPair;
-import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
@@ -36,7 +34,7 @@ import java.util.Set;
  * @description
  * @date 2022/8/7 17:44
  */
-public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<LocationAssignment, AssignmentColumn, PricingProblem> {
+public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<LocationAssignment, AssignmentColumn_true, PricingProblem> {
     private IloCplex cplex; //Cplex instance.
     private IloObjective obj; //Objective function
     private IloIntVar[] x;
@@ -576,8 +574,8 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
     }
 
     @Override
-    protected List<AssignmentColumn> generateNewColumns() throws TimeLimitExceededException {
-        List<AssignmentColumn> newColumns = new ArrayList<>();
+    protected List<AssignmentColumn_true> generateNewColumns() throws TimeLimitExceededException {
+        List<AssignmentColumn_true> newColumns = new ArrayList<>();
         try {
             /*solve the model by cplex*/
             //Compute how much time we may take to solve the pricing problem

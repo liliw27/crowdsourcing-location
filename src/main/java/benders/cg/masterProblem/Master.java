@@ -1,6 +1,5 @@
 package benders.cg.masterProblem;
 
-import benders.cg.column.AssignmentColumn;
 import benders.cg.column.AssignmentColumn_true;
 import benders.cg.pricing.PricingProblem;
 import benders.model.LocationAssignment;
@@ -16,6 +15,7 @@ import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
 import org.jorlib.frameworks.columnGeneration.util.OrderedBiMap;
+import util.Util;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,18 +28,20 @@ import java.util.Map;
  * @description
  * @date 2022/8/7 17:59
  */
-public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn, PricingProblem, LocationAssignmentMasterData> {
+public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn_true, PricingProblem, LocationAssignmentMasterData> {
     private IloObjective obj; //Objective function
     private IloRange[] oneVisitPerCustomerAtMost; //at most one visit per customer
     private IloRange[] stationCapConstraint; //capacity of station
     private IloRange[] oneRoutePerWorkerAtMost; //each worker carry out one route at most
-    private int[] capacity;
+    private double[] capacity;
     private Scenario scenario;
+
+
 
     public Master(LocationAssignment dataModel, List<PricingProblem> pricingProblems, Scenario scenario) {
         super(dataModel, pricingProblems, OptimizationSense.MINIMIZE);
-        this.capacity=dataModel.capacity;
-        this.scenario=scenario;
+        this.capacity = dataModel.capacity;
+        this.scenario = scenario;
         masterData = this.buildModel();
     }
 
@@ -68,14 +70,14 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
             oneRoutePerWorkerAtMost = new IloRange[workerNum];
 
             for (int i = 0; i < customerNum; i++) {
-                oneVisitPerCustomerAtMost[i] = cplex.addRange(0, 1, "atMOVisitPerCustomer_" + i);
+                oneVisitPerCustomerAtMost[i] = cplex.addRange(-Double.MAX_VALUE, 1, "atMOVisitPerCustomer_" + i);
             }
             for (int s = 0; s < stationNum; s++) {
-                stationCapConstraint[s] = cplex.addRange(0, capacity[s], "capacityConstraint_" + s);
+                stationCapConstraint[s] = cplex.addRange(-Double.MAX_VALUE, capacity[s], "capacityConstraint_" + s);
             }
             for (int k = 0; k < workerNum; k++) {
                 int capacity = scenario.getWorkerCapacity()[k];
-                oneRoutePerWorkerAtMost[k] = cplex.addRange(0, capacity, "atMORoutePerWorker_" + k);
+                oneRoutePerWorkerAtMost[k] = cplex.addRange(-Double.MAX_VALUE, capacity, "atMORoutePerWorker_" + k);
             }
 
         } catch (IloException e) {
@@ -83,7 +85,7 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
         }
         //Define objective
         //Define a container for the variables
-        Map<PricingProblem, OrderedBiMap<AssignmentColumn, IloNumVar>> varMap = new LinkedHashMap<>();
+        Map<PricingProblem, OrderedBiMap<AssignmentColumn_true, IloNumVar>> varMap = new LinkedHashMap<>();
         for (PricingProblem pricingProblem : pricingProblems) {
             varMap.put(pricingProblem, new OrderedBiMap<>());
         }
@@ -107,10 +109,12 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
             double timeRemaining = Math.max(1, (timeLimit - System.currentTimeMillis()) / 1000.0);
             masterData.cplex.setParam(IloCplex.DoubleParam.TiLim, timeRemaining); //set time limit in seconds
             //Potentially export the model
-//            if (config.EXPORT_MODEL) {
-//                masterData.cplex.exportModel(config.EXPORT_MASTER_DIR + "master_" + this.getIterationCount() + ".lp");
+//            if (scenario.getIndex() == 0) {
+//                if (config.EXPORT_MODEL) {
+//                    masterData.cplex.exportModel(config.EXPORT_MASTER_DIR + "master_" + this.getIterationCount() + ".lp");
+//                }
+//                exportModel("master_" + this.getIterationCount() + ".lp");
 //            }
-//            exportModel("master_" + this.getIterationCount() + ".lp");
             //Solve the model
             if (!masterData.cplex.solve() || masterData.cplex.getStatus() != IloCplex.Status.Optimal) {
                 if (masterData.cplex.getCplexStatus() == IloCplex.CplexStatus.AbortTimeLim) //Aborted due to time limit
@@ -151,9 +155,9 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
 //                }
 
 
-            dualMap.put("oneVisitPerCustomerAtMost", dualC);
-            dualMap.put("stationCapConstraint", dualS);
-            dualMap.put("oneRoutePerWorkerAtMost", dualW);
+            dualMap.put("oneVisitPerCustomerAtMost_"+scenario.getIndex(), dualC);
+            dualMap.put("stationCapConstraint_"+scenario.getIndex(), dualS);
+            dualMap.put("oneRoutePerWorkerAtMost_"+scenario.getIndex(), dualW);
 
 //            pricingProblem.initPricingProblem(dualMap, getSolution());
             pricingProblem.initPricingProblem(dualMap);
@@ -164,7 +168,7 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
     }
 
     @Override
-    public void addColumn(AssignmentColumn column) {
+    public void addColumn(AssignmentColumn_true column) {
 
         try {
             if (column instanceof AssignmentColumn_true) {
@@ -179,10 +183,11 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
                 }
                 //Set linear coefficient for station Capacity
                 int sConstraintCoe[] = new int[dataModel.instance.getStationCandidates().size()];
-                sConstraintCoe[column_true.stationCandidate.getIndex()] = column_true.demand;
+
+                sConstraintCoe[column_true.stationCandidate.getIndex()] = column_true.demands[scenario.getIndex()];
                 //Set linear coefficient for worker One JobSimple At Most
                 int wConstraintCoe[] = new int[dataModel.instance.getWorkers().size()];
-                wConstraintCoe[column_true.worker.getIndex()] = column_true.demand;
+                wConstraintCoe[column_true.worker.getIndex()] = column_true.demands[scenario.getIndex()];
 
 
                 //Register column with objective
@@ -212,11 +217,11 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
     }
 
     @Override
-    public List<AssignmentColumn> getSolution() {
-        List<AssignmentColumn> solution = new ArrayList<>();
+    public List<AssignmentColumn_true> getSolution() {
+        List<AssignmentColumn_true> solution = new ArrayList<>();
         try {
             for (PricingProblem pricingProblem : pricingProblems) {
-                AssignmentColumn[] assignmentColumns = masterData.getVarMapForPricingProblem(pricingProblem).getKeysAsArray(new AssignmentColumn[masterData.getNrColumnsForPricingProblem(pricingProblem)]);
+                AssignmentColumn_true[] assignmentColumns = masterData.getVarMapForPricingProblem(pricingProblem).getKeysAsArray(new AssignmentColumn_true[masterData.getNrColumnsForPricingProblem(pricingProblem)]);
                 IloNumVar[] vars = masterData.getVarMapForPricingProblem(pricingProblem).getValuesAsArray(new IloNumVar[masterData.getNrColumnsForPricingProblem(pricingProblem)]);
 
                 //Iterate over each column and add it to the solution if it has a non-zero value
@@ -238,7 +243,7 @@ public class Master extends AbstractMaster<LocationAssignment, AssignmentColumn,
     @Override
     public void printSolution() {
         System.out.println("Master solution:");
-        for (AssignmentColumn jc : this.getSolution())
+        for (AssignmentColumn_true jc : this.getSolution())
             System.out.println(jc);
     }
 

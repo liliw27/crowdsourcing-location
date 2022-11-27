@@ -20,6 +20,8 @@ public class Worker {
     private int lngD;
     private int capacity;
     private int travelTOD;
+    private int maxDetour;
+    private double costPerKm=0.94;
 
     public int hashCode() {
         return 27 * indexO + 31 * indexD;

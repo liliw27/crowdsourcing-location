@@ -18,20 +18,25 @@ public class MipData {
     public final IloCplex cplex;
     //first stage variable
     public final IloIntVar[] varsLocation;
-    public final IloIntVar[] varsCapacity;
-    public final IloIntVar[] varsQ;
-    public final IloIntVar varQ;
+    public final IloNumVar[] varsCapacity;
+    public final IloNumVar[] varsQ;
+    public final IloNumVar varQ;
 
     public Map<String, double[]>[] dualCostsMaps;
     public double[] objForEachScenario;
     //second stage decision variable
 
-    public MipData(IloCplex cplex, IloIntVar[] varsLocation, IloIntVar[] varsCapacity,IloIntVar[] varsQ,IloIntVar varQ) {
+    public IloNumVar vart;
+    public IloNumVar varz;
+
+    public MipData(IloCplex cplex, IloIntVar[] varsLocation, IloNumVar[] varsCapacity,IloNumVar[] varsQ,IloNumVar varQ,IloNumVar vart,IloNumVar varz) {
         this.cplex = cplex;
         this.varsLocation = varsLocation;
         this.varsCapacity=varsCapacity;
         this.varsQ=varsQ;
         this.varQ=varQ;
+        this.vart=vart;
+        this.varz=varz;
     }
 
 

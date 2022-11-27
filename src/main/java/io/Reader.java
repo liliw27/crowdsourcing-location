@@ -88,6 +88,7 @@ public class Reader {
 
             int travelTOD = Util.calTravelTime(latO, lngO, latD, lngD);
             worker.setTravelTOD(travelTOD);
+            worker.setMaxDetour(travelTOD);
 
             workers.add(worker);
         }
@@ -229,14 +230,28 @@ public class Reader {
 //                    isWorkerAvailable[j]=0;
 //                }
 //            }
-
+            int maxValue=Integer.MIN_VALUE;
+            int totalD=0;
             for(int j=0;j<numC;j++){
                 double ran=getRandom(random);
-                customerDemand[j]=(int)(customers.get(j).getDemandExpected()*ran);
+                double std=customers.get(j).getDemandExpected()/10;
+                int d=(int)(std*ran+customers.get(j).getDemandExpected());
+                if(d==0){
+                    d=customers.get(j).getDemandExpected();
+                }
+                if(d>maxValue){
+                    maxValue=d;
+                }
+                customerDemand[j]=d;
+                totalD+=d;
             }
             for(int j=0;j<numW;j++){
                 double ran=getRandom(random);
-                workerCapacity[j]=(int)(workers.get(j).getCapacity()*ran);
+                double std=workers.get(j).getCapacity()/10;
+                workerCapacity[j]=(int)(std*ran+workers.get(j).getCapacity());
+                if(workerCapacity[j]<maxValue){
+                    workerCapacity[j]=workers.get(j).getCapacity();
+                }
             }
 
 
@@ -245,7 +260,8 @@ public class Reader {
             scenario.setCustomerDemand(customerDemand);
             scenario.setAvailableWorkers(availableWorkers);
             scenario.setWorkerCapacity(workerCapacity);
-           scenario.setProbability(prob);
+            scenario.setProbability(prob);
+            scenario.setDemandTotal(totalD);
             scenarios.add(scenario);
 
         }
@@ -253,6 +269,6 @@ public class Reader {
     }
 
     private static double getRandom(Random random){
-        return random.nextDouble();
+        return random.nextGaussian();
     }
 }

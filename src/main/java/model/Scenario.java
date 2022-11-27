@@ -17,4 +17,5 @@ public class Scenario {
     private int[] customerDemand;
     private int[] workerCapacity;
     private double probability;
+    private int demandTotal;
 }

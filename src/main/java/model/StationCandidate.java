@@ -15,8 +15,8 @@ public class StationCandidate {
     private int lng;
     private int capaLower;
     private int capaUpper;
-    private int fixedCost=0;
-    private double capacityCost=1;
+    private int fixedCost=100;//40;
+    private double capacityCost=2;//0.2;
     public int hashCode() {
         return nodeIndex;
     }

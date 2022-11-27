@@ -19,9 +19,9 @@ public class LocationAssignment implements ModelInterface {
     public final Instance instance;
     public final Set<StationCandidate> incompatibleStations = new HashSet<>();
     public final List<StationCandidate> fixedStations = new ArrayList<>();
-    public final int[] capacity;
+    public final double[] capacity;
 
-    public LocationAssignment(Instance instance, int[] capacity) {
+    public LocationAssignment(Instance instance, double[] capacity) {
         this.instance = instance;
         this.capacity=capacity;
         for(int s=0;s<capacity.length;s++){

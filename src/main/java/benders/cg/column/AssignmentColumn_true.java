@@ -1,9 +1,11 @@
 package benders.cg.column;
 
 import benders.cg.pricing.PricingProblem;
+import benders.model.LocationAssignment;
 import model.Customer;
 import model.StationCandidate;
 import model.Worker;
+import org.jorlib.frameworks.columnGeneration.colgenMain.AbstractColumn;
 
 import java.util.Objects;
 import java.util.Set;
@@ -13,13 +15,18 @@ import java.util.Set;
  * @description
  * @date 2022/10/28 20:32
  */
-public class AssignmentColumn_true extends AssignmentColumn {
+public class AssignmentColumn_true extends AbstractColumn<LocationAssignment, PricingProblem> implements Comparable<AssignmentColumn_true>,Cloneable{
 
-    public final double cost;
-    public final int demand;
+    public double cost;
     public final Worker worker;
     public final Set<Customer> customers;
     public final StationCandidate stationCandidate;
+    public int index;
+//    public short demand;
+    public  double reducedCost;
+    public boolean [] isDemandsSatisfy;
+    public short [] demands;
+
 
     /**
      * Constructs a new column
@@ -36,33 +43,32 @@ public class AssignmentColumn_true extends AssignmentColumn {
     public AssignmentColumn_true(PricingProblem associatedPricingProblem, boolean isArtificial, String creator, double cost, int demand, Worker worker, Set<Customer> customers, StationCandidate stationCandidate) {
         super(associatedPricingProblem, isArtificial, creator);
         this.cost = cost;
-        this.demand = demand;
         this.worker = worker;
         this.customers = customers;
         this.stationCandidate = stationCandidate;
     }
 
-    public AssignmentColumn_true(PricingProblem associatedPricingProblem, boolean isArtificial, String creator, double cost, int demand, Worker worker, Set<Customer> customers, StationCandidate stationCandidate, double reducedCost) {
+    public AssignmentColumn_true(PricingProblem associatedPricingProblem, boolean isArtificial, String creator,  Worker worker, Set<Customer> customers, StationCandidate stationCandidate,int index) {
         super(associatedPricingProblem, isArtificial, creator);
-        this.cost = cost;
-        this.demand = demand;
         this.worker = worker;
         this.customers = customers;
         this.stationCandidate = stationCandidate;
-        this.reducedCost = reducedCost;
+        this.index=index;
     }
+
+
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         AssignmentColumn_true that = (AssignmentColumn_true) o;
-        return Double.compare(that.cost, cost) == 0 && demand == that.demand && Objects.equals(worker, that.worker) && Objects.equals(customers, that.customers) && Objects.equals(stationCandidate, that.stationCandidate);
+        return this.index == that.index;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(cost, demand, worker, customers, stationCandidate);
+        return Objects.hash(cost, worker, customers, stationCandidate);
     }
 
 //    @Override
@@ -121,8 +127,19 @@ public class AssignmentColumn_true extends AssignmentColumn {
         return string;
     }
 
+    public AssignmentColumn_true clone(){
+
+        try {
+           AssignmentColumn_true column_true= (AssignmentColumn_true) super.clone();
+            return column_true;
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
-    public int compareTo(AssignmentColumn o) {
+    public int compareTo(AssignmentColumn_true o) {
         return Double.compare(this.reducedCost, o.reducedCost);
     }
+
 }

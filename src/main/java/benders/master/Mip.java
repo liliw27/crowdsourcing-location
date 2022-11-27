@@ -2,11 +2,11 @@ package benders.master;
 
 import ilog.concert.IloException;
 import ilog.cplex.IloCplex;
-import locationAssignmentBAP.cg.column.AssignmentColumn;
 import lombok.Data;
 import model.Instance;
 import model.Station;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
+import util.GlobalVariable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +34,10 @@ public class Mip {
     private int workerNum;
     private int customerNum;
     private int typeNum;
+    private double expectedObj;
+    private double secondStageObj;
+    private double firstStageObj;
+    private double CVaR;
 
     public Mip(Instance instance) {
         this.dataModel = instance;
@@ -66,7 +70,12 @@ public class Mip {
             //this.printSolution();
             this.optimal = mipData.cplex.getStatus() == IloCplex.Status.Optimal;
             this.isFeasible = true;
-
+            this.expectedObj =mipData.cplex.getValue(mipData.varQ);
+            if(dataModel.isCVaR()){
+                this.CVaR=mipData.cplex.getValue(mipData.vart)/(1- GlobalVariable.alpha)+mipData.cplex.getValue(mipData.varz);
+            }
+            this.secondStageObj=GlobalVariable.lambda*this.CVaR+(1-GlobalVariable.lambda)*this.expectedObj;
+            this.firstStageObj=this.objectiveValue-secondStageObj;
         } else if (mipData.cplex.getStatus() == IloCplex.Status.Infeasible) {
 //			throw new RuntimeException("Mip infeasible");
             this.isFeasible = false;
