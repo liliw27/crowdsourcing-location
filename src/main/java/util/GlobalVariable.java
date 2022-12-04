@@ -27,5 +27,13 @@ public class GlobalVariable {
     public static long timeStart;
     public static long timeLimit=7200000;
 
+    public static boolean isDemandRecorded=true;
+
+    public static boolean isExact=false;
+
+    public static boolean isReadMatrix=false;
+
+    public static boolean isDemandTricky=false;
+
 
 }

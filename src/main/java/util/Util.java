@@ -1,6 +1,9 @@
 package util;
 
+import benders.cg.LocationAssignmentCGSolver;
 import benders.cg.column.AssignmentColumn_true;
+import benders.model.LocationAssignment;
+import benders.model.Solution;
 import ilog.concert.IloException;
 import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;
@@ -15,12 +18,15 @@ import model.Station;
 import model.StationCandidate;
 import model.Worker;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.math3.distribution.GammaDistribution;
+import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,6 +34,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * @author Wang Li
@@ -65,6 +75,77 @@ public class Util {
 
         return travelTime;
     }
+
+    public static double getCostE(Set<Customer> customers, Worker worker, StationCandidate stationCandidate, Instance instance,Scenario scenario) {
+        double cost = 0;
+        if (customers.size() == 0) {
+            return 1000;
+        }
+        //cost+=GlobalVariable.daysNum*dataModel.instance.getModelCoe()[x]*
+        //1. number of location n_k^\xi
+        cost += GlobalVariable.daysNum * instance.getModelCoe()[1] * customers.size();
+        //3. D_{1k}^\xi the longest distance between the station and the customer locations
+        double D1 = 0;
+        double sumD = 0;
+        for (Customer customer : customers) {
+            int travelTime = calTravelTime(customer.getLat(), customer.getLng(), stationCandidate.getLat(), stationCandidate.getLng());
+            sumD += travelTime;
+            if (D1 < travelTime) {
+                D1 = travelTime;
+            }
+        }
+        cost += GlobalVariable.daysNum * instance.getModelCoe()[3] * D1;
+        //4. \bar{d}_{1k}^\xi the average distance between the station and customer locations
+        double bard1 = sumD / customers.size();
+        cost += GlobalVariable.daysNum * instance.getModelCoe()[4] * bard1;
+        //6. D_{2k}^\xi is the longest distance between the destination of crowd-courier k and the customer locations
+        double D2 = 0;
+        double sumD2 = 0;
+        for (Customer customer : customers) {
+            int travelTime = calTravelTime(customer.getLat(), customer.getLng(), worker.getLatD(), worker.getLngD());
+            sumD2 += travelTime;
+            if (D2 < travelTime) {
+                D2 = travelTime;
+            }
+        }
+        cost += GlobalVariable.daysNum * instance.getModelCoe()[6] * D2;
+        //7. \bar{d}_{2k}^\xi the average distance between crowd-courier k and customer locations
+        double bard2 = sumD2 / customers.size();
+        cost += GlobalVariable.daysNum * instance.getModelCoe()[7] * bard2;
+        //20. gamma_9 a_1n(a_1 The maximum latitudinal difference between a pair of customer locations)
+        int minlat = Integer.MAX_VALUE;
+        int maxlat = Integer.MIN_VALUE;
+        int minlng = Integer.MAX_VALUE;
+        int maxlng = Integer.MIN_VALUE;
+        for (Customer customer : customers) {
+            if (minlat > customer.getLat()) {
+                minlat = customer.getLat();
+            }
+            if (maxlat < customer.getLat()) {
+                maxlat = customer.getLat();
+            }
+            if (minlng > customer.getLng()) {
+                minlng = customer.getLng();
+            }
+            if (maxlng < customer.getLng()) {
+                maxlng = customer.getLng();
+            }
+        }
+        cost += GlobalVariable.daysNum * instance.getModelCoe()[20] * (maxlat - minlat) * customers.size();
+
+        //22. gamma_11 b_1n(b_1 The maximum longitudinal difference between a pair of customer locations)
+
+        cost += GlobalVariable.daysNum * instance.getModelCoe()[22] * (maxlng - minlng) * customers.size();
+        cost = cost * instance.getCompensation() / 60;
+        cost = cost - (instance.getCompensation() * worker.getTravelTOD() * 1.0) / 60;
+
+        for (Customer customer : customers) {
+            cost -= GlobalVariable.daysNum *scenario.getCustomerDemand()[customer.getIndex()]* customer.getUnservedPenalty();
+
+        }
+        return cost;
+    }
+
 
     public static double getCost(Set<Customer> customers, Worker worker, StationCandidate stationCandidate, Instance instance) {
         double cost = 0;
@@ -326,8 +407,7 @@ public class Util {
 
                     //PricingProblem associatedPricingProblem, boolean isArtificial, String creator, double cost, int demand, Worker worker, Set<Customer> customers, StationCandidate stationCandidate
                     AssignmentColumn_true assignmentColumn = new AssignmentColumn_true(null, false, "enumerate", pair.getRight(), customers, (StationCandidate) pair.getLeft(), count);
-                    assignmentColumn.isDemandsSatisfy = new boolean[instance.getScenarios().size()];
-                    assignmentColumn.demands = new short[instance.getScenarios().size()];
+
                     columnSet.add(assignmentColumn);
                     count++;
 //                /*summarize the features*/
@@ -346,7 +426,7 @@ public class Util {
             float[][] predicts;
 
             if (count > 0) {
-                Booster booster = XGBoost.loadModel("model.bin");
+                Booster booster = XGBoost.loadModel("model_2real.bin");//"model_2real.bin"
                 DMatrix dtest = new DMatrix("dataset/predict.svm.txt#dtest" + it + ".cache");
 // predict
                 predicts = booster.predict(dtest);
@@ -363,7 +443,9 @@ public class Util {
                         removeColum.add(assignmentColumn);
                         continue;
                     }
-                    assignmentColumn.cost = ((travelTime - instance.getTravelCostMatrix()[assignmentColumn.worker.getIndexO()][assignmentColumn.worker.getIndexD()]) * Constants.speed * 1.0) / 60;
+//                    assignmentColumn.cost = ((travelTime - instance.getTravelCostMatrix()[assignmentColumn.worker.getIndexO()][assignmentColumn.worker.getIndexD()]) * Constants.speed * 1.0) / 60;
+                    assignmentColumn.cost = instance.getCompensation() * (travelTime - assignmentColumn.worker.getTravelTOD()) / 60;
+
                 }
                 columnSet.removeAll(removeColum);
                 removedCnt = removeColum.size();
@@ -386,7 +468,7 @@ public class Util {
                 AssignmentColumn_true assignmentColumn = new AssignmentColumn_true(null, false, "enumerate", pair.getRight(), customers, pair.getLeft(), count);
                 assignmentColumn.isDemandsSatisfy = new boolean[instance.getScenarios().size()];
                 assignmentColumn.demands = new short[instance.getScenarios().size()];
-                assignmentColumn.cost = instance.getCompensation()*(travelTime - pair.getRight().getTravelTOD()) / 60;
+                assignmentColumn.cost = instance.getCompensation() * (travelTime - pair.getRight().getTravelTOD()) / 60;
 //                assignmentColumn.cost = ((travelTime - pair.getRight().getTravelTOD()) * Constants.speed * 1.0) / 60;
 
                 columnSet.add(assignmentColumn);
@@ -624,5 +706,103 @@ public class Util {
         return demand;
     }
 
+    public static List<Scenario> generateScenarios(Instance instance, double coeC, double coeW, int N, JDKRandomGenerator randomGenerator) {
+        List<Scenario> scenarios = new ArrayList<>();
+
+        GammaDistribution[] gammacustomers = new GammaDistribution[instance.getCustomers().size()];
+        GammaDistribution[] gammaworkers = new GammaDistribution[instance.getWorkers().size()];
+        for (Customer customer : instance.getCustomers()) {
+            double shape = 1 / (coeC * coeC);
+            double scale = coeC * coeC * customer.getDemandExpected();
+            gammacustomers[customer.getIndex()] = new GammaDistribution(randomGenerator, shape, scale);
+        }
+        for (Worker worker : instance.getWorkers()) {
+            double shape = 1 / (coeW * coeW);
+            double scale = coeW * coeW * worker.getCapacity();
+            gammaworkers[worker.getIndex()] = new GammaDistribution(randomGenerator, shape, scale);
+        }
+
+        double prob = 1.0 / N;
+        for (int i = 0; i < N; i++) {
+            List<Worker> availableWorkers = new ArrayList<>();
+            Scenario scenario = new Scenario();
+            int[] isWorkerAvailable = new int[instance.getWorkers().size()];
+            int[] customerDemand = new int[instance.getCustomers().size()];
+            int[] workerCapacity = new int[instance.getWorkers().size()];
+            Arrays.fill(isWorkerAvailable, 1);
+            availableWorkers.addAll(instance.getWorkers());
+            int totalD = 0;
+            for (int j = 0; j < instance.getCustomers().size(); j++) {
+                customerDemand[j] = (int) gammacustomers[j].sample();
+                totalD += customerDemand[j];
+            }
+            for (int j = 0; j < instance.getWorkers().size(); j++) {
+                workerCapacity[j] = (int) gammaworkers[j].sample();
+            }
+
+
+            scenario.setIndex(i);
+            scenario.setIsWorkerAvailable(isWorkerAvailable);
+            scenario.setCustomerDemand(customerDemand);
+            scenario.setAvailableWorkers(availableWorkers);
+            scenario.setWorkerCapacity(workerCapacity);
+            scenario.setProbability(prob);
+            scenario.setDemandTotal(totalD);
+            scenarios.add(scenario);
+        }
+        return scenarios;
+    }
+
+    public static double evaluate(Instance instance, Solution solution, List<Scenario> scenarioEvaluation) throws XGBoostError, IOException, IloException {
+        instance.setScenarios(scenarioEvaluation);
+        for (AssignmentColumn_true assignmentColumn_true : GlobalVariable.columns) {
+            assignmentColumn_true.isDemandsSatisfy = new boolean[instance.getScenarios().size()];
+            assignmentColumn_true.demands = new short[instance.getScenarios().size()];
+            for (int xi = 0; xi < instance.getScenarios().size(); xi++) {
+
+                Scenario scenario0 = instance.getScenarios().get(xi);
+                short demand = Util.getDemand(assignmentColumn_true.customers, scenario0);
+
+                assignmentColumn_true.isDemandsSatisfy[xi] = (demand <= scenario0.getWorkerCapacity()[assignmentColumn_true.worker.getIndex()]);
+                assignmentColumn_true.demands[xi] = demand;
+            }
+        }
+        ExecutorService executor = Executors.newFixedThreadPool(Constants.MAXTHREADS);
+        List<Future<Void>> futures = new ArrayList<>(scenarioEvaluation.size());
+        //generate all possible columns and calculate the travel cost
+        List<LocationAssignmentCGSolver> cgSolvers = new ArrayList<>(scenarioEvaluation.size());
+        double[] objForEachScenario = new double[scenarioEvaluation.size()];
+        for (int m = 0; m < scenarioEvaluation.size(); m++) {
+            Scenario scenario = scenarioEvaluation.get(m);
+
+            LocationAssignment locationAssignment = new LocationAssignment(instance, solution.getCapacity());
+            LocationAssignmentCGSolver cgSolver = new LocationAssignmentCGSolver(locationAssignment, scenario);
+            cgSolvers.add(cgSolver);
+//            cgSolver.solveCG();
+            Future<Void> f = executor.submit(cgSolver);
+            futures.add(f);
+
+
+        }
+        for (Future<Void> f : futures) {
+            try {
+                f.get(); //get() is a blocking procedure
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        double avg = 0;
+
+        for (int i = 0; i < cgSolvers.size(); i++) {
+            LocationAssignmentCGSolver cgSolver = cgSolvers.get(i);
+            objForEachScenario[i] = cgSolver.getObjectiveValue() + instance.getUnservedPenalty() * scenarioEvaluation.get(i).getDemandTotal();
+            avg += objForEachScenario[i];
+        }
+        avg = avg / scenarioEvaluation.size();
+        avg = solution.getFirstStageObj() + avg;
+        return avg;
+    }
 
 }

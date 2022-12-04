@@ -32,5 +32,6 @@ public class Instance {
     private double compensation=18;
     private boolean isCVaR=false;
     private double totalPenalty;
+    private double[] penalties;
 
 }

@@ -28,7 +28,7 @@ public class BendersSolver {
     public static void main(String[] args) throws IOException, IloException, XGBoostError {
         File file = new File("dataset/instance/instance");
 
-        Instance instance = Reader.readInstance(file, 50, 0, 20, 40, 20, 1);
+        Instance instance = Reader.readInstance(file, 50, 0, 20, 30, 20, 1);
         //generate all possible columns and calculate the travel cost
         int it = 0;
         Set<Pair<Station, Worker>> pairSWSet = Util.getAvailableSWPair(instance.getStationCandidates(), instance.getWorkers(), instance.getTravelCostMatrix());
@@ -71,8 +71,8 @@ public class BendersSolver {
             System.out.println("Is optimal: " + mip.isOptimal());
             System.out.println("Bound: " + mip.getLowerBound());
             System.out.println("Nodes: " + mip.getNrOfNodes());
-            System.out.println("firstStage: " + mip.getFirstStageObj());
-            System.out.println("secondStage: " + mip.getSecondStageObj());
+            System.out.println("firstStage: " + mip.mipData.firstStageObj);
+            System.out.println("secondStage: " + mip.mipData.secondStageObj);
             System.out.println("firstplussecond: " + (mip.getSecondStageObj()+mip.getFirstStageObj()));
             System.out.println("expectedObj: " + mip.getExpectedObj());
             System.out.println("CVaR: " + mip.getCVaR());

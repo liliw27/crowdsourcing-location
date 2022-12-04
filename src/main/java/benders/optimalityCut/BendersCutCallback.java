@@ -3,6 +3,7 @@ package benders.optimalityCut;
 import benders.cg.LocationAssignmentCGSolver;
 import benders.master.MipData;
 import benders.model.LocationAssignment;
+import benders.model.Solution;
 import ilog.concert.IloException;
 import ilog.concert.IloRange;
 import ilog.cplex.IloCplex;
@@ -11,6 +12,7 @@ import ilog.cplex.IloCplex;
 import io.StopMsgException;
 import model.Instance;
 import model.Scenario;
+import model.Station;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
 import util.Constants;
 import util.GlobalVariable;
@@ -46,7 +48,7 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
         this.mipData = mipData;
         this.executor = Executors.newFixedThreadPool(Constants.MAXTHREADS); //Creates a threat pool consisting of MAXTHREADS threats
         this.futures = new ArrayList<>(dataModel.getScenarios().size());
-        this.optimalityCuts = new ArrayList<>();
+        this.optimalityCuts = mipData.optimalityCuts;
         iter = 0;
     }
 
@@ -100,33 +102,41 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
         }
 
 
-
         double firstStageObj = 0;
-        for(int s=0;s<dataModel.getStationCandidates().size();s++){
-            boolean isSelected= MathProgrammingUtil.doubleToBoolean(this.getValue(mipData.varsLocation[s]));
-            if(isSelected){
-                firstStageObj+=dataModel.getStationCandidates().get(s).getFixedCost();
-                firstStageObj+=dataModel.getStationCandidates().get(s).getCapacityCost()*this.getValue(mipData.varsCapacity[s]);
+        for (int s = 0; s < dataModel.getStationCandidates().size(); s++) {
+            boolean isSelected = MathProgrammingUtil.doubleToBoolean(this.getValue(mipData.varsLocation[s]));
+            if (isSelected) {
+                firstStageObj += dataModel.getStationCandidates().get(s).getFixedCost();
+                firstStageObj += dataModel.getStationCandidates().get(s).getCapacityCost() * this.getValue(mipData.varsCapacity[s]);
             }
         }
         double secondStageObj;
-        double q=0;
+        double q = 0;
         double valueZ = 0;
-        if(dataModel.isCVaR()){
-            double cvar=0;
-            valueZ=this.getValue(mipData.varz);
-            for(Scenario scenario:dataModel.getScenarios()){
-                q+=objForEachScenario[scenario.getIndex()]*scenario.getProbability();
-                cvar+=Math.max(0,objForEachScenario[scenario.getIndex()]-valueZ)*scenario.getProbability();
+        double cvar = 0;
+        if (dataModel.isCVaR()) {
+            valueZ = this.getValue(mipData.varz);
+            for (Scenario scenario : dataModel.getScenarios()) {
+                q += objForEachScenario[scenario.getIndex()] * scenario.getProbability();
+                cvar += Math.max(0, objForEachScenario[scenario.getIndex()] - valueZ) * scenario.getProbability();
             }
-            secondStageObj=GlobalVariable.lambda*(valueZ+cvar/(1-GlobalVariable.alpha))+(1-GlobalVariable.lambda)*q;
-        }else {
-            for(Scenario scenario:dataModel.getScenarios()){
-                q+=objForEachScenario[scenario.getIndex()]*scenario.getProbability();
+            secondStageObj = GlobalVariable.lambda * (valueZ + cvar / (1 - GlobalVariable.alpha)) + (1 - GlobalVariable.lambda) * q;
+        } else {
+            for (Scenario scenario : dataModel.getScenarios()) {
+                q += objForEachScenario[scenario.getIndex()] * scenario.getProbability();
             }
-            secondStageObj=q;
+            secondStageObj = q;
         }
-        double upperBound=firstStageObj+secondStageObj;
+        double upperBound = firstStageObj + secondStageObj;
+        if (upperBound < mipData.firstPlusSecondObj) {
+            mipData.firstPlusSecondObj = upperBound;
+            mipData.firstStageObj = firstStageObj;
+            mipData.secondStageObj = secondStageObj;
+            mipData.expectedObj = q;
+            mipData.CVaR = cvar;
+            mipData.solution = getSolution();
+        }
+
 
         mipData.objForEachScenario = objForEachScenario;
         mipData.dualCostsMaps = dualCostsMaps;
@@ -138,19 +148,19 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
         } else {
             valueQ = this.getValue(mipData.varQ);
         }
-        System.out.println("###########################upperbound: " + upperBound + "; lowerbound: " + this.getObjValue()+"; bestObj: "+this.getBestObjValue()+"#######################");
-        System.out.println( "the number of nodes processed so far in the active branch-and-cut search."+this.getNnodes());
-        System.out.println( "the number of nodes remaining to be processed"+this.getNremainingNodes());
-        System.out.println("totalpenalty: "+dataModel.getTotalPenalty());
+        System.out.println("###########################upperbound: " + upperBound + "; lowerbound: " + this.getObjValue() + "; bestObj: " + this.getBestObjValue() + "#######################");
+        System.out.println("the number of nodes processed so far in the active branch-and-cut search: " + this.getNnodes());
+        System.out.println("the number of nodes remaining to be processed: " + this.getNremainingNodes());
+        System.out.println("totalpenalty: " + dataModel.getTotalPenalty());
 
 
-        if(System.currentTimeMillis()-GlobalVariable.timeStart>GlobalVariable.timeLimit){
+        if (System.currentTimeMillis() - GlobalVariable.timeStart > GlobalVariable.timeLimit) {
             System.out.println("TIME OUT!!!!!");
             return;
         }
 
 
-        OptimalityCutGenerator cutGen = new OptimalityCutGenerator(dataModel, mipData, valuesQ, valueQ, valueZ, optimalityCuts,q);
+        OptimalityCutGenerator cutGen = new OptimalityCutGenerator(dataModel, mipData, valuesQ, valueQ, valueZ, optimalityCuts, q);
         List<IloRange> optimalityCuts = cutGen.generateInqualities();
         for (IloRange optimalityCut : optimalityCuts) {
             this.add(optimalityCut);
@@ -161,5 +171,28 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
 
 
 //        executor.shutdownNow();
+    }
+
+
+    public Solution getSolution() {
+        List<Station> stations = new ArrayList<>();
+        Solution solution = null;
+        try {
+            for (int s = 0; s < dataModel.getStationCandidates().size(); s++) {
+                double value = this.getValue(mipData.varsLocation[s]);
+                if (MathProgrammingUtil.doubleToBoolean(value)) {
+                    Station station = (Station) dataModel.getStationCandidates().get(s);
+                    station.setCapacity(this.getValue(mipData.varsCapacity[s]));
+                    System.out.println(station);
+                    stations.add(station);
+                }
+            }
+            solution = new Solution(stations, dataModel.getStationCandidates().size());
+//            mipData.cplex.end();
+        } catch (IloException e) {
+            e.printStackTrace();
+        }
+
+        return solution;
     }
 }

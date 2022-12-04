@@ -15,17 +15,17 @@ import java.util.Set;
  * @description
  * @date 2022/10/28 20:32
  */
-public class AssignmentColumn_true extends AbstractColumn<LocationAssignment, PricingProblem> implements Comparable<AssignmentColumn_true>,Cloneable{
+public class AssignmentColumn_true extends AbstractColumn<LocationAssignment, PricingProblem> implements Comparable<AssignmentColumn_true>, Cloneable {
 
     public double cost;
     public final Worker worker;
     public final Set<Customer> customers;
     public final StationCandidate stationCandidate;
     public int index;
-//    public short demand;
-    public  double reducedCost;
-    public boolean [] isDemandsSatisfy;
-    public short [] demands;
+    public short demand;
+    public double reducedCost;
+    public boolean[] isDemandsSatisfy;
+    public short[] demands;
 
 
     /**
@@ -40,22 +40,22 @@ public class AssignmentColumn_true extends AbstractColumn<LocationAssignment, Pr
      * @param customers
      * @param stationCandidate
      */
-    public AssignmentColumn_true(PricingProblem associatedPricingProblem, boolean isArtificial, String creator, double cost, int demand, Worker worker, Set<Customer> customers, StationCandidate stationCandidate) {
+    public AssignmentColumn_true(PricingProblem associatedPricingProblem, boolean isArtificial, String creator, double cost, short demand, Worker worker, Set<Customer> customers, StationCandidate stationCandidate) {
         super(associatedPricingProblem, isArtificial, creator);
         this.cost = cost;
         this.worker = worker;
         this.customers = customers;
         this.stationCandidate = stationCandidate;
+        this.demand = demand;
     }
 
-    public AssignmentColumn_true(PricingProblem associatedPricingProblem, boolean isArtificial, String creator,  Worker worker, Set<Customer> customers, StationCandidate stationCandidate,int index) {
+    public AssignmentColumn_true(PricingProblem associatedPricingProblem, boolean isArtificial, String creator, Worker worker, Set<Customer> customers, StationCandidate stationCandidate, int index) {
         super(associatedPricingProblem, isArtificial, creator);
         this.worker = worker;
         this.customers = customers;
         this.stationCandidate = stationCandidate;
-        this.index=index;
+        this.index = index;
     }
-
 
 
     @Override
@@ -119,7 +119,7 @@ public class AssignmentColumn_true extends AbstractColumn<LocationAssignment, Pr
 
     @Override
     public String toString() {
-        String string = "Value: " + this.value + "ValueBest: " + this.valueBest + " worker:" + worker.getIndex() + "; customers:";
+        String string = "Value: " + this.value + "ValueBest: " + this.valueBest + "cost: " + this.cost + " worker:" + worker.getIndex() + "; customers:";
         for (Customer customer : customers) {
             string += customer.getIndex() + ",";
         }
@@ -127,10 +127,10 @@ public class AssignmentColumn_true extends AbstractColumn<LocationAssignment, Pr
         return string;
     }
 
-    public AssignmentColumn_true clone(){
+    public AssignmentColumn_true clone() {
 
         try {
-           AssignmentColumn_true column_true= (AssignmentColumn_true) super.clone();
+            AssignmentColumn_true column_true = (AssignmentColumn_true) super.clone();
             return column_true;
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException(e);

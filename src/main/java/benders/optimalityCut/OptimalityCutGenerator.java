@@ -25,15 +25,15 @@ public class OptimalityCutGenerator extends CutGenerator {
     public double valueQ = 0;
     public double[] valuesQ;
     public double valuez;
-    private double q=0;
+    private double q = 0;
 
-    public OptimalityCutGenerator(Instance instance, MipData mipData, double[] valuesQ, double valueQ, double valuez, List<IloRange> optimalityCuts,double q) {
+    public OptimalityCutGenerator(Instance instance, MipData mipData, double[] valuesQ, double valueQ, double valuez, List<IloRange> optimalityCuts, double q) {
         super(instance, mipData);
         this.valueQ = valueQ;
         this.valuesQ = valuesQ;
         this.valuez = valuez;
         this.optimalityCuts = optimalityCuts;
-        this.q=q;
+        this.q = q;
     }
 
     @Override
@@ -46,24 +46,26 @@ public class OptimalityCutGenerator extends CutGenerator {
             for (int xi = 0; xi < instance.getScenarios().size(); xi++) {
                 Scenario scenario = instance.getScenarios().get(xi);
                 q = objForEachScenario[xi];
-
+//                System.out.println("q: " + q + "valueQ: " + valuesQ[xi]);
                 if (q > valuesQ[xi] + Constants.EPSILON) {
+//                if ((q - valuesQ[xi]) / q > Constants.cutGenerationPrecision) {
+
                     System.out.println("q: " + q + "valueQ: " + valuesQ[xi]);
                     IloLinearNumExpr expr = mipData.cplex.linearNumExpr();
                     expr.addTerm(-1, mipData.varsQ[xi]);
                     double dualSum = 0;
 
                     for (int i = 0; i < scenario.getCustomerDemand().length; i++) {
-                        dualSum -= dualCostsMaps[xi].get("oneVisitPerCustomerAtMost")[i];
+                        dualSum -= dualCostsMaps[xi].get("oneVisitPerCustomerAtMost_" + scenario.getIndex())[i];
                     }
                     for (int k = 0; k < instance.getWorkers().size(); k++) {
-                        dualSum -= dualCostsMaps[xi].get("oneRoutePerWorkerAtMost")[k];
+                        dualSum -= scenario.getWorkerCapacity()[k] * dualCostsMaps[xi].get("oneRoutePerWorkerAtMost_" + scenario.getIndex())[k];
                     }
 
                     for (int s = 0; s < instance.getStationCandidates().size(); s++) {
-                        expr.addTerm(dualCostsMaps[xi].get("stationCapConstraint")[s], mipData.varsCapacity[s]);
+                        expr.addTerm(dualCostsMaps[xi].get("stationCapConstraint_" + scenario.getIndex())[s], mipData.varsCapacity[s]);
                     }
-
+                    dualSum -= instance.getUnservedPenalty() * instance.getScenarios().get(xi).getDemandTotal();
                     IloRange iloRange = mipData.cplex.le(expr, dualSum, "optimalityCut" + optimalityCuts.size());
                     inequalities.add(iloRange);
                     optimalityCuts.add(iloRange);
@@ -79,7 +81,7 @@ public class OptimalityCutGenerator extends CutGenerator {
                 for (int xi = 0; xi < instance.getScenarios().size(); xi++) {
                     Scenario scenario = instance.getScenarios().get(xi);
 //                    if (objForEachScenario[xi] > valuez + Constants.cutGenerationPrecision) {
-                    if ((objForEachScenario[xi]-valuez)/objForEachScenario[xi]  > Constants.cutGenerationPrecision) {
+                    if ((objForEachScenario[xi] - valuez) / objForEachScenario[xi] > Constants.cutGenerationPrecision) {
                         expr0.addTerm(scenario.getProbability(), mipData.varz);
 
 
@@ -106,7 +108,7 @@ public class OptimalityCutGenerator extends CutGenerator {
             }
             //optimality cut
 //            if (q > valueQ + Constants.cutGenerationPrecision) {
-            if ((q - valueQ)/q > Constants.cutGenerationPrecision) {
+            if ((q - valueQ) / q > Constants.cutGenerationPrecision) {
                 System.out.println("q: " + q + "valueQ: " + valueQ);
                 IloLinearNumExpr expr = mipData.cplex.linearNumExpr();
                 expr.addTerm(-1, mipData.varQ);
@@ -133,7 +135,7 @@ public class OptimalityCutGenerator extends CutGenerator {
 
             }
 
-            if(inequalities.size()==0) {
+            if (inequalities.size() == 0) {
                 System.out.println("No cut is found!");
             }
         }

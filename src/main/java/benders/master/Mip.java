@@ -27,14 +27,14 @@ public class Mip {
     private boolean optimal = false; //Solution is optimal
     //    private Solution solution; //Best solution
     private boolean isFeasible = true; //Solution is feasible
-    private List<Station> solution ;
+    private List<Station> solution;
 
-//    private List<AssignmentColumn> columns;
+    //    private List<AssignmentColumn> columns;
     private int stationNum;
     private int workerNum;
     private int customerNum;
     private int typeNum;
-    private double expectedObj;
+    private double expectedObj = 0;
     private double secondStageObj;
     private double firstStageObj;
     private double CVaR;
@@ -63,19 +63,29 @@ public class Mip {
 
         if (mipData.cplex.solve() && (mipData.cplex.getStatus() == IloCplex.Status.Feasible || mipData.cplex.getStatus() == IloCplex.Status.Optimal)) {
             this.objectiveValue = (int) Math.round(mipData.cplex.getObjValue());// MathProgrammingUtil.doubleToInt(mipDataS.cplex.getObjValue());//(int)Math.round(mipDataS.cplex.getObjValue());
-            System.out.println("*************"+ mipData.cplex.getObjValue());
+            System.out.println("*************" + mipData.cplex.getObjValue());
             this.bestObjValue = (int) Math.round(mipData.cplex.getBestObjValue());
             System.out.println(mipData.cplex.getBestObjValue());
-            solution=getSolution();
+            solution = getSolution();
             //this.printSolution();
             this.optimal = mipData.cplex.getStatus() == IloCplex.Status.Optimal;
             this.isFeasible = true;
-            this.expectedObj =mipData.cplex.getValue(mipData.varQ);
-            if(dataModel.isCVaR()){
-                this.CVaR=mipData.cplex.getValue(mipData.vart)/(1- GlobalVariable.alpha)+mipData.cplex.getValue(mipData.varz);
+            if (dataModel.isMultipleCut()) {
+                double[] valuesQ = mipData.cplex.getValues(mipData.varsQ);
+
+                for (int xi = 0; xi < dataModel.getScenarios().size(); xi++) {
+                    this.expectedObj += dataModel.getScenarios().get(xi).getProbability() * valuesQ[xi];
+                }
+
+            } else {
+                this.expectedObj = mipData.cplex.getValue(mipData.varQ);
+
             }
-            this.secondStageObj=GlobalVariable.lambda*this.CVaR+(1-GlobalVariable.lambda)*this.expectedObj;
-            this.firstStageObj=this.objectiveValue-secondStageObj;
+            if (dataModel.isCVaR()) {
+                this.CVaR = mipData.cplex.getValue(mipData.vart) / (1 - GlobalVariable.alpha) + mipData.cplex.getValue(mipData.varz);
+            }
+            this.secondStageObj = GlobalVariable.lambda * this.CVaR + (1 - GlobalVariable.lambda) * this.expectedObj;
+            this.firstStageObj = this.objectiveValue - secondStageObj;
         } else if (mipData.cplex.getStatus() == IloCplex.Status.Infeasible) {
 //			throw new RuntimeException("Mip infeasible");
             this.isFeasible = false;
@@ -124,13 +134,13 @@ public class Mip {
         try {
 
             for (int s = 0; s < dataModel.getStationCandidates().size(); s++) {
-                    double value = mipData.cplex.getValue(mipData.varsLocation[s]);
-                    if (MathProgrammingUtil.doubleToBoolean(value)) {
-                        Station station=(Station) dataModel.getStationCandidates().get(s) ;
-                        station.setCapacity(mipData.cplex.getValue(mipData.varsCapacity[s]));
-                        System.out.println(station);
-                    }
+                double value = mipData.cplex.getValue(mipData.varsLocation[s]);
+                if (MathProgrammingUtil.doubleToBoolean(value)) {
+                    Station station = (Station) dataModel.getStationCandidates().get(s);
+                    station.setCapacity(mipData.cplex.getValue(mipData.varsCapacity[s]));
+                    System.out.println(station);
                 }
+            }
 
 //            mipData.cplex.end();
         } catch (IloException e) {

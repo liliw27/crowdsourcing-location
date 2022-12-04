@@ -8,6 +8,7 @@ import model.Scenario;
 import model.StationCandidate;
 import scala.collection.immutable.Stream;
 import util.Constants;
+import util.GlobalVariable;
 import util.Util;
 
 import java.io.File;
@@ -25,12 +26,13 @@ import java.util.Scanner;
  * @date 6/19/22 6:38 PM
  */
 public class Reader {
-    public static Instance readInstance(File file, int scenarioNum, int randomSeed,int numS, int numC, int numW, double lambdaW) throws FileNotFoundException {
+    public static Instance readInstance(File file, int scenarioNum, int randomSeed, int numS, int numC, int numW, double lambdaW) throws FileNotFoundException {
+        //lambdaW: the ratio of total demand of customers on the total capacity of workers
         Random random = new Random(randomSeed);
         List<Worker> workers = new ArrayList<>();
         List<Customer> customers = new ArrayList<>();
         List<StationCandidate> stationCandidates = new ArrayList<>();
-        List<Scenario> scenarios=new ArrayList<>();
+        List<Scenario> scenarios = new ArrayList<>();
         int[][] travelCostMatrix;
         Instance instance = new Instance();
 
@@ -60,7 +62,6 @@ public class Reader {
             stationCandidates.add(station);
 
         }
-        stationCandidates = stationCandidates.subList(0, numS);
         for (int i = 0; i < stationCandidates.size(); i++) {
             StationCandidate stationCandidate = stationCandidates.get(i);
             stationCandidate.setNodeIndex(index);
@@ -92,9 +93,8 @@ public class Reader {
 
             workers.add(worker);
         }
-        Collections.shuffle(workers, random);
+//        Collections.shuffle(workers, random);
 //        int numW = Math.min((int) (numC * ratio), workers.size());
-        workers = workers.subList(0, numW);
         for (int i = 0; i < workers.size(); i++) {
             Worker worker = workers.get(i);
             worker.setIndexO(index);
@@ -114,95 +114,126 @@ public class Reader {
             customer.setLng(Integer.parseInt(split[2]));
             customer.setDemandExpected(Integer.parseInt(split[3]));
             customers.add(customer);
-        }
-        Collections.shuffle(customers,random);
-        customers=customers.subList(0,numC);
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
             customer.setNodeIndex(index);
-            customer.setIndex(i);
             index++;
+            customer.setIndex(i);
+        }
+//        Collections.shuffle(customers,random);
+
+        int totalNodes = workers.size() * 2 + customers.size() + stationCandidates.size();
+        travelCostMatrix = new int[totalNodes][totalNodes];
+        if (GlobalVariable.isReadMatrix) {
+            scanner.nextLine();
+
+            for (int i = 0; i < totalNodes; i++) {
+                string = scanner.nextLine();
+                split = string.split(" ");
+                for (int j = 0; j < totalNodes; j++) {
+                    travelCostMatrix[i][j] = Integer.parseInt(split[j]);
+                }
+            }
+            for (Worker worker : workers) {
+                worker.setTravelTOD(travelCostMatrix[worker.getIndexO()][worker.getIndexD()]);
+                worker.setMaxDetour(Math.max(30, travelCostMatrix[worker.getIndexO()][worker.getIndexD()]));
+            }
+        } else {
+            travelCostMatrix = calTravelTimeMatrix(workers, customers, stationCandidates);
         }
 
-        travelCostMatrix=calTravelTimeMatrix(workers,customers,stationCandidates);
-        scenarios=generateScenarios(scenarioNum, customers,workers, numC,numW,random,lambdaW);
+        stationCandidates = stationCandidates.subList(0, numS);
+
+        workers = workers.subList(0, numW);
+
+        customers = customers.subList(0, numC);
+
+
+        for (int i = 0; i < workers.size(); i++) {
+            double ratio = customers.size() * 1.0 / (lambdaW * workers.size());
+            double d = customers.get(i % customers.size()).getDemandExpected();
+            workers.get(i).setCapacity((int) (ratio * d));
+        }
+
+
+        scenarios = generateScenarios(scenarioNum, customers, workers, numC, numW, random, lambdaW);
         instance.setScenarios(scenarios);
         instance.setWorkers(workers);
         instance.setCustomers(customers);
         instance.setStationCandidates(stationCandidates);
         instance.setTravelCostMatrix(travelCostMatrix);
         instance.setName(file.getName());
-        double[] modelCoe=new double[30];
-        modelCoe[4]=0.025;
-        modelCoe[7]=0.025;
-        modelCoe[3]=0.025;
-        modelCoe[6]=0.025;
-        modelCoe[1]=0.010;
+        double[] modelCoe = new double[30];
+        modelCoe[4] = 1.06357853;
+        modelCoe[7] = 1.11416112;
+        modelCoe[3] = 0.20291482;
+        modelCoe[6] = 0.22328071;
+        modelCoe[1] = 2.98403633;
 //        modelCoe[8]=0.05;
 //        modelCoe[9]=0.05;
-        modelCoe[16]=0.0005;
-        modelCoe[17]=0.0005;
-        modelCoe[18]=0.0005;
-        modelCoe[19]=0.0005;
-        modelCoe[20]=0;//0.0002;
-        modelCoe[21]=0.0002;
-        modelCoe[22]=0;//0.0002;
-        modelCoe[23]=0.0002;
+        modelCoe[16] = 0.0005;
+        modelCoe[17] = 0.0005;
+        modelCoe[18] = 0.0005;
+        modelCoe[19] = 0.0005;
+        modelCoe[20] = 0.03384613;//0.0002;
+        modelCoe[21] = 0.0002;
+        modelCoe[22] = 0.02948948;//0.0002;
+        modelCoe[23] = 0.0002;
         instance.setModelCoe(modelCoe);
 
-        int typeNum=2;
-        int [] type=new int[2];
-        type[0]=100;
-        type[1]=200;
+        int typeNum = 2;
+        int[] type = new int[2];
+        type[0] = 100;
+        type[1] = 200;
         instance.setType(type);
-        double[][] lambda=new double[stationNum][typeNum];
+        double[][] lambda = new double[stationNum][typeNum];
         instance.setLambda(lambda);
-        Constants.totalPenalty=getTotalPenalty(customers);
+        Constants.totalPenalty = getTotalPenalty(customers);
         return instance;
     }
-    private static int getTotalPenalty(List<Customer> customers){
-        int totalpen=0;
-        for(Customer customer:customers){
-            totalpen+=customer.getUnservedPenalty();
+
+    private static int getTotalPenalty(List<Customer> customers) {
+        int totalpen = 0;
+        for (Customer customer : customers) {
+            totalpen += customer.getUnservedPenalty();
         }
         return totalpen;
     }
-    private static int[][] calTravelTimeMatrix(List<Worker> workers, List<Customer> parcels, List<StationCandidate> stations) {
-        int totalNodes=workers.size()*2+parcels.size()+stations.size();
-        int[][] travelTimeMatrix=new int[totalNodes][totalNodes];
-        for(Worker worker:workers){
-            int o=worker.getIndexO();
 
-            int d=worker.getIndexD();
-            travelTimeMatrix[o][d]= Util.calTravelTime(worker.getLatO(),worker.getLngO(),worker.getLatD(),worker.getLngD());
+    private static int[][] calTravelTimeMatrix(List<Worker> workers, List<Customer> parcels, List<StationCandidate> stations) {
+        int totalNodes = workers.size() * 2 + parcels.size() + stations.size();
+        int[][] travelTimeMatrix = new int[totalNodes][totalNodes];
+        for (Worker worker : workers) {
+            int o = worker.getIndexO();
+
+            int d = worker.getIndexD();
+            travelTimeMatrix[o][d] = Util.calTravelTime(worker.getLatO(), worker.getLngO(), worker.getLatD(), worker.getLngD());
 //            travelTimeMatrix[o][d]=0;
-            travelTimeMatrix[d][o]=travelTimeMatrix[o][d];
-            for(StationCandidate station:stations){
-                int i=worker.getIndexO();
-                int j=station.getNodeIndex();
-                int k=worker.getIndexD();
-                travelTimeMatrix[i][j]= Util.calTravelTime(worker.getLatO(),worker.getLngO(),station.getLat(),station.getLng());
-                travelTimeMatrix[j][k]= Util.calTravelTime(station.getLat(),station.getLng(),worker.getLatD(),worker.getLngD());
+            travelTimeMatrix[d][o] = travelTimeMatrix[o][d];
+            for (StationCandidate station : stations) {
+                int i = worker.getIndexO();
+                int j = station.getNodeIndex();
+                int k = worker.getIndexD();
+                travelTimeMatrix[i][j] = Util.calTravelTime(worker.getLatO(), worker.getLngO(), station.getLat(), station.getLng());
+                travelTimeMatrix[j][k] = Util.calTravelTime(station.getLat(), station.getLng(), worker.getLatD(), worker.getLngD());
             }
-            for(Customer parcel:parcels){
-                int i=parcel.getNodeIndex();
-                int j=worker.getIndexD();
-                travelTimeMatrix[i][j]=Util.calTravelTime(parcel.getLat(),parcel.getLng(),worker.getLatD(),worker.getLngD());
-            }
-        }
-        for(StationCandidate station:stations){
-            for(Customer parcel:parcels){
-                int i=station.getNodeIndex();
-                int j=parcel.getNodeIndex();
-                travelTimeMatrix[i][j]=Util.calTravelTime(station.getLat(),station.getLng(),parcel.getLat(),parcel.getLng());
+            for (Customer parcel : parcels) {
+                int i = parcel.getNodeIndex();
+                int j = worker.getIndexD();
+                travelTimeMatrix[i][j] = Util.calTravelTime(parcel.getLat(), parcel.getLng(), worker.getLatD(), worker.getLngD());
             }
         }
-        for(Customer parcel:parcels){
-            for(Customer parcel1:parcels){
-                int i=parcel.getNodeIndex();
-                int j=parcel1.getNodeIndex();
-                if(i!=j){
-                    travelTimeMatrix[i][j]=Util.calTravelTime(parcel.getLat(),parcel.getLng(),parcel1.getLat(),parcel1.getLng());
+        for (StationCandidate station : stations) {
+            for (Customer parcel : parcels) {
+                int i = station.getNodeIndex();
+                int j = parcel.getNodeIndex();
+                travelTimeMatrix[i][j] = Util.calTravelTime(station.getLat(), station.getLng(), parcel.getLat(), parcel.getLng());
+            }
+        }
+        for (Customer parcel : parcels) {
+            for (Customer parcel1 : parcels) {
+                int i = parcel.getNodeIndex();
+                int j = parcel1.getNodeIndex();
+                if (i != j) {
+                    travelTimeMatrix[i][j] = Util.calTravelTime(parcel.getLat(), parcel.getLng(), parcel1.getLat(), parcel1.getLng());
                 }
             }
 
@@ -210,16 +241,16 @@ public class Reader {
         return travelTimeMatrix;
     }
 
-    private static List<Scenario> generateScenarios(int scenarioNum,List<Customer> customers,List<Worker> workers, int numC,int numW,Random random,double lambdaW){
-        List<Scenario> scenarios=new ArrayList<>();
-        double prob=1.0/scenarioNum;
-        for(int i=0;i<scenarioNum;i++){
-            List<Worker> availableWorkers=new ArrayList<>();
-            Scenario scenario=new Scenario();
-            int[] isWorkerAvailable=new int[numW];
-            int[] customerDemand=new int[numC];
-            int[] workerCapacity=new int[numW];
-            Arrays.fill(isWorkerAvailable,1);
+    private static List<Scenario> generateScenarios(int scenarioNum, List<Customer> customers, List<Worker> workers, int numC, int numW, Random random, double lambdaW) {
+        List<Scenario> scenarios = new ArrayList<>();
+        double prob = 1.0 / scenarioNum;
+        for (int i = 0; i < scenarioNum; i++) {
+            List<Worker> availableWorkers = new ArrayList<>();
+            Scenario scenario = new Scenario();
+            int[] isWorkerAvailable = new int[numW];
+            int[] customerDemand = new int[numC];
+            int[] workerCapacity = new int[numW];
+            Arrays.fill(isWorkerAvailable, 1);
             availableWorkers.addAll(workers);
 //            for(int j=0;j<numW;j++){
 //                double ran=getRandom(random);
@@ -230,27 +261,27 @@ public class Reader {
 //                    isWorkerAvailable[j]=0;
 //                }
 //            }
-            int maxValue=Integer.MIN_VALUE;
-            int totalD=0;
-            for(int j=0;j<numC;j++){
-                double ran=getRandom(random);
-                double std=customers.get(j).getDemandExpected()/10;
-                int d=(int)(std*ran+customers.get(j).getDemandExpected());
-                if(d==0){
-                    d=customers.get(j).getDemandExpected();
+            int maxValue = Integer.MIN_VALUE;
+            int totalD = 0;
+            for (int j = 0; j < numC; j++) {
+                double ran = getRandom(random);
+                double std = customers.get(j).getDemandExpected() / 10;
+                int d = (int) (std * ran + customers.get(j).getDemandExpected());
+                if (d == 0) {
+                    d = customers.get(j).getDemandExpected();
                 }
-                if(d>maxValue){
-                    maxValue=d;
+                if (d > maxValue) {
+                    maxValue = d;
                 }
-                customerDemand[j]=d;
-                totalD+=d;
+                customerDemand[j] = d;
+                totalD += d;
             }
-            for(int j=0;j<numW;j++){
-                double ran=getRandom(random);
-                double std=workers.get(j).getCapacity()/10;
-                workerCapacity[j]=(int)(std*ran+workers.get(j).getCapacity());
-                if(workerCapacity[j]<maxValue){
-                    workerCapacity[j]=workers.get(j).getCapacity();
+            for (int j = 0; j < numW; j++) {
+                double ran = getRandom(random);
+                double std = workers.get(j).getCapacity() / 10;
+                workerCapacity[j] = (int) (std * ran + workers.get(j).getCapacity());
+                if (workerCapacity[j] < maxValue) {
+                    workerCapacity[j] = workers.get(j).getCapacity();
                 }
             }
 
@@ -268,7 +299,7 @@ public class Reader {
         return scenarios;
     }
 
-    private static double getRandom(Random random){
+    private static double getRandom(Random random) {
         return random.nextGaussian();
     }
 }

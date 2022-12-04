@@ -44,12 +44,13 @@ public class ModelBuilder {
     public MipData getILP() throws IloException {
         mipData.cplex.setParam(IloCplex.IntParam.NodeLim, 210000000); //Continue search
         //mipDataS.cplex.setParam(IloCplex.BooleanParam.PreInd, false);
-        mipData.cplex.setParam(IloCplex.Param.TimeLimit, 2000); //set time limit in seconds
+        mipData.cplex.setParam(IloCplex.Param.TimeLimit, 7200); //set time limit in seconds
         mipData.cplex.setParam(IloCplex.IntParam.Threads, Constants.MAXTHREADS);
         mipData.cplex.setParam(IloCplex.IntParam.NodeFileInd, 3);
         mipData.cplex.setParam(IloCplex.IntParam.WorkMem, 4096);
-        mipData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Optimality, 0.1);
-//        mipData.cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.01);
+        mipData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Optimality, 0.000001);
+        mipData.cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.01);
+//        mipData.cplex.setParam(IloCplex.Param.MIP.Strategy.NodeSelect,0);
 
 //        mipData.cplex.setOut(null); //Disable Cplex output
         return mipData;
@@ -75,16 +76,16 @@ public class ModelBuilder {
             IloNumVar var = cplex.numVar(0, dataModel.getStationCandidates().get(i).getCapaUpper(), "w_s" + i);
             varsCapacity[i] = var;
         }
-        IloNumVar[] varsQ= new IloNumVar[dataModel.getScenarios().size()];
-        for (int xi=0; xi<dataModel.getScenarios().size();xi++){
-            IloNumVar var = cplex.numVar(0,Integer.MAX_VALUE,"varQ_"+xi);
-            varsQ[xi]=var;
+        IloNumVar[] varsQ = new IloNumVar[dataModel.getScenarios().size()];
+        for (int xi = 0; xi < dataModel.getScenarios().size(); xi++) {
+            IloNumVar var = cplex.numVar(0, Integer.MAX_VALUE, "varQ_" + xi);
+            varsQ[xi] = var;
         }
-        IloNumVar varQ= cplex.numVar(0,Integer.MAX_VALUE,"varQ");
-        IloNumVar vart= cplex.numVar(0,Integer.MAX_VALUE,"vart");
+        IloNumVar varQ = cplex.numVar(0, Integer.MAX_VALUE, "varQ");
+        IloNumVar vart = cplex.numVar(0, Integer.MAX_VALUE, "vart");
 //        IloNumVar varQ= cplex.numVar(-100000,Integer.MAX_VALUE,"varQ");
 //        IloNumVar vart= cplex.numVar(-100000,Integer.MAX_VALUE,"vart");
-        IloNumVar varz= cplex.numVar(Integer.MIN_VALUE,Integer.MAX_VALUE,"varz");
+        IloNumVar varz = cplex.numVar(Integer.MIN_VALUE, Integer.MAX_VALUE, "varz");
 
 
         //Create objective: Minimize weighted travel travelTime
@@ -96,23 +97,20 @@ public class ModelBuilder {
             obj.addTerm(fixedCost, varsLocation[s]);
             obj.addTerm(capCost, varsCapacity[s]);
         }
-        if(dataModel.isMultipleCut()){
-            for (int xi=0; xi<dataModel.getScenarios().size();xi++){
-                obj.addTerm(dataModel.getScenarios().get(xi).getProbability()*(1- GlobalVariable.lambda),varsQ[xi]);
+        if (dataModel.isMultipleCut()) {
+            for (int xi = 0; xi < dataModel.getScenarios().size(); xi++) {
+                obj.addTerm(dataModel.getScenarios().get(xi).getProbability(), varsQ[xi]);
             }
-        }
-        else{
-            if(!dataModel.isCVaR()){
-                obj.addTerm(1,varQ);
-            }else {
-                obj.addTerm(1- GlobalVariable.lambda,varQ);
-                obj.addTerm(GlobalVariable.lambda,varz);
-                obj.addTerm(GlobalVariable.lambda/(1-GlobalVariable.alpha),vart);
+        } else {
+            if (!dataModel.isCVaR()) {
+                obj.addTerm(1, varQ);
+            } else {
+                obj.addTerm(1 - GlobalVariable.lambda, varQ);
+                obj.addTerm(GlobalVariable.lambda, varz);
+                obj.addTerm(GlobalVariable.lambda / (1 - GlobalVariable.alpha), vart);
             }
 
         }
-
-
 
 
         cplex.addMinimize(obj);
@@ -121,21 +119,21 @@ public class ModelBuilder {
         //First stage station capacity upper and lower bound
         for (int s = 0; s < stationNum; s++) {
             IloLinearNumExpr expr = cplex.linearNumExpr();
-            int lowerCap= dataModel.getStationCandidates().get(s).getCapaLower();
-            int upperCap= dataModel.getStationCandidates().get(s).getCapaUpper();
-            expr.addTerm( -lowerCap, varsLocation[s]);
+            int lowerCap = dataModel.getStationCandidates().get(s).getCapaLower();
+            int upperCap = dataModel.getStationCandidates().get(s).getCapaUpper();
+            expr.addTerm(-lowerCap, varsLocation[s]);
             expr.addTerm(1, varsCapacity[s]);
-            cplex.addGe(expr,0, "station capacity selection lower_" + s);
+            cplex.addGe(expr, 0, "station capacity selection lower_" + s);
             expr = cplex.linearNumExpr();
-            expr.addTerm( -upperCap, varsLocation[s]);
+            expr.addTerm(-upperCap, varsLocation[s]);
             expr.addTerm(1, varsCapacity[s]);
             cplex.addLe(expr, 0, "station capacity selection upper_" + s);
         }
         IloLinearIntExpr expr = cplex.linearIntExpr();
-        for(int s = 0; s < stationNum; s++) {
-            expr.addTerm(1,varsLocation[s]);
+        for (int s = 0; s < stationNum; s++) {
+            expr.addTerm(1, varsLocation[s]);
         }
-        cplex.addGe(expr, 1, "at least one location" );
+        cplex.addGe(expr, 1, "at least one location");
 //        IloLinearNumExpr expr0 = cplex.linearNumExpr();
 //        expr0.addTerm(1,varQ);
 //        expr0.addTerm(-1,varz);
@@ -143,7 +141,7 @@ public class ModelBuilder {
 //        cplex.addLe(expr0, 0, "CVaR" );
 
 
-        mipData = new MipData(cplex, varsLocation, varsCapacity, varsQ,varQ,vart,varz);
+        mipData = new MipData(cplex, varsLocation, varsCapacity, varsQ, varQ, vart, varz);
         cplex.exportModel("mip.lp");
         cplex.use(new BendersCutCallback(dataModel, mipData));
     }

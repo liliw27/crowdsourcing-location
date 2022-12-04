@@ -70,14 +70,14 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
         super(dataModel, pricingProblem);
         this.name = "ExactMatchingCalculator";
         this.buildModel();
-        for(StationCandidate stationCandidate:dataModel.incompatibleStations){
+        for (StationCandidate stationCandidate : dataModel.incompatibleStations) {
             try {
                 v[stationCandidate.getIndex()].setUB(0);
             } catch (IloException e) {
                 throw new RuntimeException(e);
             }
         }
-        for(StationCandidate stationCandidate:dataModel.fixedStations){
+        for (StationCandidate stationCandidate : dataModel.fixedStations) {
             try {
                 v[stationCandidate.getIndex()].setLB(1);
             } catch (IloException e) {
@@ -101,7 +101,6 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
             int workerCapacityNum = dataModel.instance.getWorkerCapacityNum();
             int stationNum = dataModel.instance.getStationCandidates().size();
 
-            int workerCapacity = dataModel.instance.getWorkers().get(0).getCapacity();//We assume that the capacity of each worker is homogeneous
             Worker worker = pricingProblem.worker;
             //create variables
             //second stage decision variable
@@ -110,6 +109,9 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
                 IloIntVar var = cplex.boolVar("x_i" + i);
                 x[i] = var;
             }
+            x[0].setUB(0);
+            x[1].setUB(0);
+            x[2].setLB(1);
 
             v = new IloIntVar[stationNum];
             for (int s = 0; s < stationNum; s++) {
@@ -120,7 +122,7 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
             tao = cplex.boolVar("tao");
             z = new IloNumVar[stationNum];
             for (int s = 0; s < stationNum; s++) {
-                IloNumVar var = cplex.numVar(0, workerCapacity, "z_s" + s);
+                IloNumVar var = cplex.numVar(0, Double.MAX_VALUE, "z_s" + s);
                 z[s] = var;
             }
 
@@ -172,14 +174,14 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
                 f2[j] = var;
 
             }
-            a1plus = cplex.numVar(0, dataModel.instance.getCoordinateMax(), "a1plus");//9. [0,1000]
+            a1plus = cplex.numVar(0, Double.MAX_VALUE, "a1plus");//9. [0,1000]
 //
-            a1minus = cplex.numVar(-dataModel.instance.getCoordinateMax(), 0, "a1minus");//10. [-1000,0]
+            a1minus = cplex.numVar(-Double.MAX_VALUE, 0, "a1minus");//10. [-1000,0]
 //
-            b1plus = cplex.numVar(0, dataModel.instance.getCoordinateMax(), "b1plus");//11. [0,1000]
+            b1plus = cplex.numVar(-Double.MAX_VALUE, 0, "b1plus");//11. [0,1000]
 
 
-            b1minus = cplex.numVar(-1 * dataModel.instance.getCoordinateMax(), 0, "b1minus");//12. [-1000,0]
+            b1minus = cplex.numVar(0, Double.MAX_VALUE, "b1minus");//12. [-1000,0]
 
             int temp = (int) (dataModel.instance.getCoordinateMax() * workerCapacityNum);
             gamma9 = new IloNumVar[workerCapacityNum + 1];//25. [0,500*10]
@@ -203,41 +205,47 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
             //Create objective: Minimize weighted travel travelTime
             objExp = cplex.linearNumExpr();
 
-            double coe0 = GlobalVariable.daysNum;
+            double coe0 = (GlobalVariable.daysNum * 1.0);
 
 
             //1. number of location n_k^\xi
-            double coe = coe0 * dataModel.instance.getModelCoe()[1];
+            double coe = coe0 * dataModel.instance.getModelCoe()[1] * dataModel.instance.getCompensation() / 60;
             for (int i = 0; i < customerNum; i++) {
-                objExp.addTerm(coe - coe0 * dataModel.instance.getCustomers().get(i).getUnservedPenalty(), x[i]);
+                objExp.addTerm(coe - coe0 * pricingProblem.scenario.getCustomerDemand()[dataModel.instance.getCustomers().get(i).getIndex()] * dataModel.instance.getCustomers().get(i).getUnservedPenalty(), x[i]);
             }
 
             //3. D_{1k}^\xi
             coe = coe0 * dataModel.instance.getModelCoe()[3];
+            coe = coe * dataModel.instance.getCompensation() / 60;
             objExp.addTerm(coe, dmax1);
             //4. \bar{d}_{1k}^\xi
             coe = coe0 * dataModel.instance.getModelCoe()[4];
+            coe = coe * dataModel.instance.getCompensation() / 60;
             for (int j = 0; j <= workerCapacityNum; j++) {
                 objExp.addTerm(coe, f1[j]);
             }
 
             //6. D_{2k}^\xi
             coe = coe0 * dataModel.instance.getModelCoe()[6];
+            coe = coe * dataModel.instance.getCompensation() / 60;
             objExp.addTerm(coe, dmax2);
             //7. \bar{d}_{2k}^\xi
             coe = coe0 * dataModel.instance.getModelCoe()[7];
+            coe = coe * dataModel.instance.getCompensation() / 60;
             for (int j = 0; j <= workerCapacityNum; j++) {
                 objExp.addTerm(coe, f2[j]);
             }
 
             //20. gamma_9
             coe = coe0 * dataModel.instance.getModelCoe()[20];
+            coe = coe * dataModel.instance.getCompensation() / 60;
             for (int j = 0; j <= workerCapacityNum; j++) {
                 objExp.addTerm(coe, gamma9[j]);
             }
 
             //22. gamma_11
             coe = coe0 * dataModel.instance.getModelCoe()[22];
+            coe = coe * dataModel.instance.getCompensation() / 60;
             for (int j = 0; j <= workerCapacityNum; j++) {
                 objExp.addTerm(coe, gamma11[j]);
             }
@@ -249,18 +257,18 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
 
             //Second stage
             //1. worker capacity
-            Scenario scenario = dataModel.instance.getScenarios().get(0);
+            Scenario scenario = pricingProblem.scenario;
 
 
-            IloLinearIntExpr expr = cplex.linearIntExpr();
-            for (int i = 0; i < customerNum; i++) {
-                expr.addTerm(scenario.getCustomerDemand()[i], x[i]);
-            }
-            cplex.addGe(workerCapacity, expr, "worker Capacity");
+//            IloLinearIntExpr expr = cplex.linearIntExpr();
+//            for (int i = 0; i < customerNum; i++) {
+//                expr.addTerm(scenario.getCustomerDemand()[i], x[i]);
+//            }
+//            cplex.addGe(scenario.getWorkerCapacity()[pricingProblem.worker.getIndex()], expr, "worker Capacity");
 
 
             //2. worker capacity number
-            expr = cplex.linearIntExpr();
+            IloLinearIntExpr expr = cplex.linearIntExpr();
             for (int i = 0; i < customerNum; i++) {
                 expr.addTerm(1, x[i]);
             }
@@ -299,7 +307,7 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
                 for (int i = 0; i < customerNum; i++) {
                     numExpr.addTerm(scenario.getCustomerDemand()[i], x[i]);
                 }
-                int M = workerCapacity;
+                int M = 10000;
                 numExpr.addTerm(M, v[s]);
                 numExpr.addTerm(-1, z[s]);
                 cplex.addLe(numExpr, M, "defineZ1_s" + s);
@@ -316,7 +324,7 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
             }
 
             for (int s = 0; s < stationNum; s++) {
-                int M = workerCapacity;
+                int M = 10000;
                 IloLinearNumExpr numExpr = cplex.linearNumExpr();
                 numExpr.addTerm(M, v[s]);
                 numExpr.addTerm(-1, z[s]);
@@ -325,7 +333,7 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
             }
 
             //D_1
-            double M = 1.414 * dataModel.instance.getCoordinateMax();
+            double M = 10000;
 
             for (int i = 0; i < customerNum; i++) {
                 for (int s = 0; s < stationNum; s++) {
@@ -360,7 +368,7 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
 
 
             //\bar{d}_1
-            M = dataModel.instance.getCoordinateMax() * workerCapacityNum;
+            M = 10000;
 
             for (int j = 0; j <= workerCapacityNum; j++) {
                 IloLinearNumExpr numExpr = cplex.linearNumExpr();
@@ -425,7 +433,7 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
 
 
             //D_2
-            M = dataModel.instance.getCoordinateMax() * 1.414;
+            M = 10000;
 
 
             for (int i = 0; i < customerNum; i++) {
@@ -442,7 +450,7 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
 
 
             //\bar{d}_2
-            M = dataModel.instance.getCoordinateMax() * workerCapacityNum;
+            M = 10000;
 
             for (int j = 0; j <= workerCapacityNum; j++) {
                 IloLinearNumExpr numExpr = cplex.linearNumExpr();
@@ -481,7 +489,7 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
             }
 
             //a1
-            M = dataModel.instance.getCoordinateMax();
+            M = 100000;
 
             for (int i = 0; i < customerNum; i++) {
                 Customer customer = dataModel.instance.getCustomers().get(i);
@@ -510,8 +518,8 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
                 int lng = customer.getLng();
                 IloLinearNumExpr numExpr = cplex.linearNumExpr();
                 numExpr.addTerm(lng, x[i]);
-                numExpr.addTerm(-1, b1plus);
-                cplex.addLe(numExpr, 0, "b1_1_i" + i);
+                numExpr.addTerm(1, b1minus);
+                cplex.addGe(numExpr, 0, "b1_1_i" + i);
             }
 
 
@@ -520,18 +528,18 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
                 int lng = customer.getLng();
                 IloLinearNumExpr numExpr = cplex.linearNumExpr();
                 numExpr.addTerm(M, x[i]);
-                numExpr.addTerm(-1, b1minus);
-                cplex.addLe(numExpr, M + lng, "b1_2_i" + i);
+                numExpr.addTerm(-1, b1plus);
+                cplex.addLe(numExpr, M - lng, "b1_2_i" + i);
             }
 
 
 //        a_1n
-            M = dataModel.instance.getCoordinateMax() * workerCapacityNum;
+            M = 100000 * workerCapacityNum;
 
             for (int j = 0; j <= workerCapacityNum; j++) {
                 double jr = j;
                 IloLinearNumExpr numExpr = cplex.linearNumExpr();
-                numExpr.addTerm(M, u[j]);
+                numExpr.addTerm(M * jr, u[j]);
                 numExpr.addTerm(-1, gamma9[j]);
                 cplex.addGe(numExpr, 0, "a_1n_1_j" + j);
                 IloLinearNumExpr numExpr1 = cplex.linearNumExpr();
@@ -542,9 +550,9 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
                 IloLinearNumExpr expr2 = cplex.linearNumExpr();
                 expr2.addTerm(jr, a1minus);
                 expr2.addTerm(jr, a1plus);
-                expr2.addTerm(M, u[j]);
+                expr2.addTerm(M * jr, u[j]);
                 expr2.addTerm(-1, gamma9[j]);
-                cplex.addLe(expr2, M, "a_1n_3_j" + j);
+                cplex.addLe(expr2, M * jr, "a_1n_3_j" + j);
             }
 
 
@@ -552,7 +560,7 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
             for (int j = 0; j <= workerCapacityNum; j++) {
                 double jr = j;
                 IloLinearNumExpr numExpr = cplex.linearNumExpr();
-                numExpr.addTerm(M, u[j]);
+                numExpr.addTerm(M * jr, u[j]);
                 numExpr.addTerm(-1, gamma11[j]);
                 cplex.addGe(numExpr, 0, "b_1n_1_j" + j);
                 IloLinearNumExpr numExpr1 = cplex.linearNumExpr();
@@ -563,9 +571,9 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
                 IloLinearNumExpr expr2 = cplex.linearNumExpr();
                 expr2.addTerm(jr, b1minus);
                 expr2.addTerm(jr, b1plus);
-                expr2.addTerm(M, u[j]);
+                expr2.addTerm(M * jr, u[j]);
                 expr2.addTerm(-1, gamma11[j]);
-                cplex.addLe(expr2, M, "b_1n_3_j" + j);
+                cplex.addLe(expr2, M * jr, "b_1n_3_j" + j);
             }
         } catch (IloException e) {
             e.printStackTrace();
@@ -581,18 +589,19 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
             //Compute how much time we may take to solve the pricing problem
             double timeRemaining = Math.max(1, (timeLimit - System.currentTimeMillis()) / 1000.0);
             cplex.setParam(IloCplex.DoubleParam.TiLim, timeRemaining); //set time limit in seconds
-            exportModel("pricing_.lp");
+//            exportModel("pricing_.lp");
 
             //Solve the problem and check the solution nodeStatus
             if (!cplex.solve() || cplex.getStatus() != IloCplex.Status.Optimal) {
                 if (cplex.getCplexStatus() == IloCplex.CplexStatus.AbortTimeLim) { //Aborted due to time limit
                     throw new TimeLimitExceededException();
                 } else if (cplex.getStatus() == IloCplex.Status.Infeasible) { //Pricing problem infeasible
+//                    exportModel("pricing_.lp");
                     pricingProblemInfeasible = true;
                     this.objective = Double.MAX_VALUE;
 //                    throw new InfeasibleExceededException();
 //                    throw new RuntimeException("Pricing problem infeasible");
-                    AssignmentColumn_true assignmentColumn_true = new AssignmentColumn_true(pricingProblem, true, "initial", -1000000, 0, dataModel.instance.getWorkers().get(0), new HashSet<>(dataModel.instance.getCustomers()), dataModel.instance.getStationCandidates().get(0));
+                    AssignmentColumn_true assignmentColumn_true = new AssignmentColumn_true(pricingProblem, true, "initial", -1000000, (short) 0, dataModel.instance.getWorkers().get(0), new HashSet<>(dataModel.instance.getCustomers()), dataModel.instance.getStationCandidates().get(0));
 //
                     newColumns.add(assignmentColumn_true);
                     System.out.println("++++++++++Pricing problem infeasible");
@@ -602,15 +611,17 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
             } else { //Pricing problem solved to optimality.
                 this.pricingProblemInfeasible = false;
                 this.objective = cplex.getObjValue();
-                int demand=0;
+                int demand = 0;
                 double[] valuesX = cplex.getValues(x); //Get the variable values
 
                 for (int i = 0; i < valuesX.length; i++) {
                     if (MathProgrammingUtil.doubleToBoolean(valuesX[i])) {
-                        demand += dataModel.instance.getScenarios().get(0).getCustomerDemand()[i];
+                        demand += pricingProblem.scenario.getCustomerDemand()[i];
                     }
                 }
-                if (objective - demand*pricingProblem.dualCostsMap.get("oneRoutePerWorkerAtMost")[pricingProblem.worker.getIndex()] <= -Constants.precisionForReducedCost) { //Generate new column if it has negative reduced cost
+                double c1 = (dataModel.instance.getCompensation() * pricingProblem.worker.getTravelTOD() * 1.0) / 60;
+//                double c2 = demand * pricingProblem.dualCostsMap.get("oneRoutePerWorkerAtMost_" + pricingProblem.scenario.getIndex())[pricingProblem.worker.getIndex()];
+                if (objective - c1 <= -Constants.precisionForReducedCost) { //Generate new column if it has negative reduced cost
 
                     double[] valuesv = cplex.getValues(v);
                     double[] valuesz = cplex.getValues(z);
@@ -646,9 +657,11 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
                     for (int i = 0; i < valuesX.length; i++) {
                         if (MathProgrammingUtil.doubleToBoolean(valuesX[i])) {
                             customers.add(dataModel.instance.getCustomers().get(i));
-                            cost += pricingProblem.dualCostsMap.get("oneVisitPerCustomerAtMost")[i];
+                            cost += pricingProblem.dualCostsMap.get("oneVisitPerCustomerAtMost_" + pricingProblem.scenario.getIndex())[i];
+                            cost += pricingProblem.dualCostsMap.get("oneRoutePerWorkerAtMost_" + pricingProblem.scenario.getIndex())[pricingProblem.worker.getIndex()] * pricingProblem.scenario.getCustomerDemand()[i];
                         }
                     }
+                    cost -= c1;
                     if (!customers.isEmpty()) {
                         double[] valuesV = cplex.getValues(v);
                         double[] valuesZ = cplex.getValues(z);
@@ -656,17 +669,18 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
                         for (int s = 0; s < valuesV.length; s++) {
                             if (MathProgrammingUtil.doubleToBoolean(valuesV[s])) {
                                 stationCandidate = dataModel.instance.getStationCandidates().get(s);
-                                cost += pricingProblem.dualCostsMap.get("stationCapConstraint")[s] * valuesZ[s];
+                                cost += pricingProblem.dualCostsMap.get("stationCapConstraint_" + pricingProblem.scenario.getIndex())[s] * valuesZ[s];
                                 break;
                             }
                         }
-                        double cost1 = Util.getCost(customers, pricingProblem.worker, stationCandidate, dataModel.instance);
-                        if (cost - cost1 >= 0.001) {
-                            cost = cost1;
-                            int a = 0;
-                        }
+
+                        double cost1 = Util.getCostE(customers, pricingProblem.worker, stationCandidate, dataModel.instance, pricingProblem.scenario);
+//                        if (cost - cost1 >= 0.001) {
+////                            cost = cost1;
+//                            int a = 0;
+//                        }
                         //Create an AssignmentColumn for the pricing problem with the specific station, worker, and customers
-                        AssignmentColumn_true assignmentColumn = new AssignmentColumn_true(pricingProblem, false, "exactPricing", cost1, Util.getDemand(customers, dataModel.instance.getScenarios().get(0)), pricingProblem.worker, customers, stationCandidate);
+                        AssignmentColumn_true assignmentColumn = new AssignmentColumn_true(pricingProblem, false, "exactPricing", cost1, Util.getDemand(customers, pricingProblem.scenario), pricingProblem.worker, customers, stationCandidate);
                         newColumns.add(assignmentColumn);
 //                        System.out.println("column number:"+newColumns.size());
                     }
@@ -705,14 +719,17 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
         try {
             IloLinearNumExpr objExpNew = cplex.linearNumExpr();
             for (int i = 0; i < dataModel.instance.getCustomers().size(); i++) {
-                double c = pricingProblem.dualCostsMap.get("oneVisitPerCustomerAtMost")[i];
+                double c = pricingProblem.dualCostsMap.get("oneVisitPerCustomerAtMost_" + pricingProblem.scenario.getIndex())[i];
                 objExpNew.addTerm(-c, x[i]);
+                c = pricingProblem.dualCostsMap.get("oneRoutePerWorkerAtMost_" + pricingProblem.scenario.getIndex())[pricingProblem.worker.getIndex()];
+                objExpNew.addTerm(-c * pricingProblem.scenario.getCustomerDemand()[i], x[i]);
             }
             for (int s = 0; s < dataModel.instance.getStationCandidates().size(); s++) {
-                double c = pricingProblem.dualCostsMap.get("stationCapConstraint")[s];
+                double c = pricingProblem.dualCostsMap.get("stationCapConstraint_" + pricingProblem.scenario.getIndex())[s];
                 objExpNew.addTerm(-c, z[s]);
 
             }
+
             objExpNew.add(objExp);
             obj.clearExpr();
             obj.setExpr(objExpNew);
@@ -727,7 +744,6 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
     public void close() {
         cplex.end();
     }
-
 
 
 }
