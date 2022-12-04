@@ -26,6 +26,7 @@ import java.util.Scanner;
  */
 public class Reader {
     public static Instance readInstance(File file, int scenarioNum, int randomSeed,int numS, int numC, int numW, double lambdaW) throws FileNotFoundException {
+        //lambdaW: the ratio of total demand of customers on the total capacity of workers
         Random random = new Random(randomSeed);
         List<Worker> workers = new ArrayList<>();
         List<Customer> customers = new ArrayList<>();
@@ -92,7 +93,7 @@ public class Reader {
 
             workers.add(worker);
         }
-        Collections.shuffle(workers, random);
+//        Collections.shuffle(workers, random);
 //        int numW = Math.min((int) (numC * ratio), workers.size());
         workers = workers.subList(0, numW);
         for (int i = 0; i < workers.size(); i++) {
@@ -115,13 +116,19 @@ public class Reader {
             customer.setDemandExpected(Integer.parseInt(split[3]));
             customers.add(customer);
         }
-        Collections.shuffle(customers,random);
+//        Collections.shuffle(customers,random);
         customers=customers.subList(0,numC);
         for (int i = 0; i < customers.size(); i++) {
             Customer customer = customers.get(i);
             customer.setNodeIndex(index);
             customer.setIndex(i);
             index++;
+        }
+
+        for(int i=0;i<workers.size();i++){
+            double ratio=customers.size()*1.0/(lambdaW*workers.size());
+            double d=customers.get(i%customers.size()).getDemandExpected();
+            workers.get(i).setCapacity((int)(ratio*d));
         }
 
         travelCostMatrix=calTravelTimeMatrix(workers,customers,stationCandidates);

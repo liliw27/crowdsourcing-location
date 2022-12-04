@@ -161,27 +161,51 @@ public class HeuristicPricingProblemSolver extends AbstractPricingProblemSolver<
                 if (!assignmentColumn_true.worker.equals(pricingProblem.worker)){
                     continue;
                 }
-                if (!assignmentColumn_true.isDemandsSatisfy[pricingProblem.scenario.getIndex()]) {
-                    continue;
+                if(GlobalVariable.isDemandRecorded){
+                    if (!assignmentColumn_true.isDemandsSatisfy[pricingProblem.scenario.getIndex()]) {
+                        continue;
+                    }
+
+                    double cost=assignmentColumn_true.demands[pricingProblem.scenario.getIndex()]*(assignmentColumn_true.cost-dataModel.instance.getUnservedPenalty());
+
+                    double recucedCost = getReducedCost(assignmentColumn_true.demands[pricingProblem.scenario.getIndex()], cost, assignmentColumn_true.customers, assignmentColumn_true.stationCandidate);
+                    if (recucedCost <= -Constants.precisionForReducedCost) {
+                        AssignmentColumn_true column_true=assignmentColumn_true.clone();
+                        column_true.cost=cost;
+//                    column_true.demand=assignmentColumn_true.demands[pricingProblem.scenario.getIndex()];
+                        newColumns.add(column_true);
+                        column_true.associatedPricingProblem=pricingProblem;
+                    }
+
+                }else {
+                    short demand=Util.getDemand(assignmentColumn_true.customers,pricingProblem.scenario);
+                    boolean isDemandSatisfy=(demand <= pricingProblem.scenario.getWorkerCapacity()[assignmentColumn_true.worker.getIndex()]);
+                    if (!isDemandSatisfy) {
+                        continue;
+                    }
+
+                    double cost=demand*(assignmentColumn_true.cost-dataModel.instance.getUnservedPenalty());
+
+                    double recucedCost = getReducedCost(demand, cost, assignmentColumn_true.customers, assignmentColumn_true.stationCandidate);
+                    if (recucedCost <= -Constants.precisionForReducedCost) {
+                        AssignmentColumn_true column_true=assignmentColumn_true.clone();
+                        column_true.cost=cost;
+                        column_true.demand=demand;
+//                    column_true.demand=assignmentColumn_true.demands[pricingProblem.scenario.getIndex()];
+                        newColumns.add(column_true);
+                        column_true.associatedPricingProblem=pricingProblem;
+                    }
+                }
+                if (newColumns.size() >= Constants.columnNumIte) {
+                    return newColumns;
                 }
 //
 //                int demand = Util.getDemand(assignmentColumn_true.customers, pricingProblem.scenario);
 //                if (demand > pricingProblem.scenario.getWorkerCapacity()[pricingProblem.worker.getIndex()]) {
 //                    continue;
 //                }
-                double cost=assignmentColumn_true.demands[pricingProblem.scenario.getIndex()]*(assignmentColumn_true.cost-dataModel.instance.getUnservedPenalty());
 
-                double recucedCost = getReducedCost(assignmentColumn_true.demands[pricingProblem.scenario.getIndex()], cost, assignmentColumn_true.customers, assignmentColumn_true.stationCandidate);
-                if (recucedCost <= -Constants.precisionForReducedCost) {
-                    AssignmentColumn_true column_true=assignmentColumn_true.clone();
-                    column_true.cost=cost;
-//                    column_true.demand=assignmentColumn_true.demands[pricingProblem.scenario.getIndex()];
-                    newColumns.add(column_true);
-                    column_true.associatedPricingProblem=pricingProblem;
-                }
-                if (newColumns.size() >= Constants.columnNumIte) {
-                    return newColumns;
-                }
+
             }
             return newColumns;
         }
@@ -253,7 +277,7 @@ public class HeuristicPricingProblemSolver extends AbstractPricingProblemSolver<
 //        } catch (XGBoostError e) {
 //            throw new RuntimeException(e);
 //        }
-        int demand = Util.getDemand(customers, pricingProblem.scenario);
+        short demand = Util.getDemand(customers, pricingProblem.scenario);
         if (demand > pricingProblem.scenario.getWorkerCapacity()[pricingProblem.worker.getIndex()]) {
             return column;
         }

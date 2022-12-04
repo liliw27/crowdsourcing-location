@@ -592,7 +592,7 @@ public class ExactPricingProblemSolver extends AbstractPricingProblemSolver<Loca
                     this.objective = Double.MAX_VALUE;
 //                    throw new InfeasibleExceededException();
 //                    throw new RuntimeException("Pricing problem infeasible");
-                    AssignmentColumn_true assignmentColumn_true = new AssignmentColumn_true(pricingProblem, true, "initial", -1000000, 0, dataModel.instance.getWorkers().get(0), new HashSet<>(dataModel.instance.getCustomers()), dataModel.instance.getStationCandidates().get(0));
+                    AssignmentColumn_true assignmentColumn_true = new AssignmentColumn_true(pricingProblem, true, "initial", -1000000, (short) 0, dataModel.instance.getWorkers().get(0), new HashSet<>(dataModel.instance.getCustomers()), dataModel.instance.getStationCandidates().get(0));
 //
                     newColumns.add(assignmentColumn_true);
                     System.out.println("++++++++++Pricing problem infeasible");

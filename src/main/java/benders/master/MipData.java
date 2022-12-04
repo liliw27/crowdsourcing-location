@@ -1,6 +1,7 @@
 package benders.master;
 
 import benders.cg.LocationAssignmentCGSolver;
+import benders.model.Solution;
 import ilog.concert.IloIntVar;
 import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;
@@ -29,6 +30,12 @@ public class MipData {
     public IloNumVar vart;
     public IloNumVar varz;
 
+    public double expectedObj;
+    public double secondStageObj;
+    public double firstStageObj;
+    public double firstPlusSecondObj=Double.MAX_VALUE;
+    public double CVaR;
+    public Solution solution;
     public MipData(IloCplex cplex, IloIntVar[] varsLocation, IloNumVar[] varsCapacity,IloNumVar[] varsQ,IloNumVar varQ,IloNumVar vart,IloNumVar varz) {
         this.cplex = cplex;
         this.varsLocation = varsLocation;

@@ -326,8 +326,7 @@ public class Util {
 
                     //PricingProblem associatedPricingProblem, boolean isArtificial, String creator, double cost, int demand, Worker worker, Set<Customer> customers, StationCandidate stationCandidate
                     AssignmentColumn_true assignmentColumn = new AssignmentColumn_true(null, false, "enumerate", pair.getRight(), customers, (StationCandidate) pair.getLeft(), count);
-                    assignmentColumn.isDemandsSatisfy = new boolean[instance.getScenarios().size()];
-                    assignmentColumn.demands = new short[instance.getScenarios().size()];
+
                     columnSet.add(assignmentColumn);
                     count++;
 //                /*summarize the features*/
@@ -346,7 +345,7 @@ public class Util {
             float[][] predicts;
 
             if (count > 0) {
-                Booster booster = XGBoost.loadModel("model.bin");
+                Booster booster = XGBoost.loadModel("model.bin");//"model_2real.bin"
                 DMatrix dtest = new DMatrix("dataset/predict.svm.txt#dtest" + it + ".cache");
 // predict
                 predicts = booster.predict(dtest);

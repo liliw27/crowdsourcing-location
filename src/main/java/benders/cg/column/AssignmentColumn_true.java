@@ -22,7 +22,7 @@ public class AssignmentColumn_true extends AbstractColumn<LocationAssignment, Pr
     public final Set<Customer> customers;
     public final StationCandidate stationCandidate;
     public int index;
-//    public short demand;
+    public short demand;
     public  double reducedCost;
     public boolean [] isDemandsSatisfy;
     public short [] demands;
@@ -40,12 +40,13 @@ public class AssignmentColumn_true extends AbstractColumn<LocationAssignment, Pr
      * @param customers
      * @param stationCandidate
      */
-    public AssignmentColumn_true(PricingProblem associatedPricingProblem, boolean isArtificial, String creator, double cost, int demand, Worker worker, Set<Customer> customers, StationCandidate stationCandidate) {
+    public AssignmentColumn_true(PricingProblem associatedPricingProblem, boolean isArtificial, String creator, double cost, short demand, Worker worker, Set<Customer> customers, StationCandidate stationCandidate) {
         super(associatedPricingProblem, isArtificial, creator);
         this.cost = cost;
         this.worker = worker;
         this.customers = customers;
         this.stationCandidate = stationCandidate;
+        this.demand=demand;
     }
 
     public AssignmentColumn_true(PricingProblem associatedPricingProblem, boolean isArtificial, String creator,  Worker worker, Set<Customer> customers, StationCandidate stationCandidate,int index) {

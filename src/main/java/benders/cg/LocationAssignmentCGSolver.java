@@ -159,13 +159,15 @@ public class LocationAssignmentCGSolver implements Callable<Void> {
                 accumulatedOccupiedCapW = accuW;
                 customers.add(customer);
             } else if (accuS > locationAssignment.capacity[stationCandidate.getIndex()]) {
-                double cost = Util.getCost(customers, worker, stationCandidate, locationAssignment.instance);
-                AssignmentColumn_true assignmentColumn_true = new AssignmentColumn_true(pricingProblems.get(workerIndex), false, "initial", cost, getDemand(customers,scenario), worker, customers, stationCandidate);
-                assignmentColumns.add(assignmentColumn_true);
-                obj += cost;
-                obj += stationCandidate.getFixedCost() + stationCandidate.getCapacityCost() * locationAssignment.capacity[stationCandidate.getIndex()];
-                accumulatedOccupiedCapS = scenario.getCustomerDemand()[customer.getIndex()];
-                accumulatedOccupiedCapW = scenario.getCustomerDemand()[customer.getIndex()];
+                if(customers.size()>0){
+                    double cost = Util.getCost(customers, worker, stationCandidate, locationAssignment.instance);
+                    AssignmentColumn_true assignmentColumn_true = new AssignmentColumn_true(pricingProblems.get(workerIndex), false, "initial", cost, getDemand(customers,scenario), worker, customers, stationCandidate);
+                    assignmentColumns.add(assignmentColumn_true);
+                    obj += cost;
+                    obj += stationCandidate.getFixedCost() + stationCandidate.getCapacityCost() * locationAssignment.capacity[stationCandidate.getIndex()];
+                    accumulatedOccupiedCapS = scenario.getCustomerDemand()[customer.getIndex()];
+                    accumulatedOccupiedCapW = scenario.getCustomerDemand()[customer.getIndex()];
+                }
                 stationIndex++;
                 workerIndex++;
                 if(workerIndex==scenario.getAvailableWorkers().size()){
@@ -203,17 +205,20 @@ public class LocationAssignmentCGSolver implements Callable<Void> {
             }
 
         }
-        for (AssignmentColumn_true assignmentColumn_true : assignmentColumns) {
-            assignmentColumn_true.isDemandsSatisfy=new boolean[locationAssignment.instance.getScenarios().size()];
-            assignmentColumn_true.demands=new short[locationAssignment.instance.getScenarios().size()];
-            for (int xi = 0; xi < locationAssignment.instance.getScenarios().size(); xi++) {
-                Scenario scenario = locationAssignment.instance.getScenarios().get(xi);
-                short demand = Util.getDemand(assignmentColumn_true.customers, scenario);
+        if(GlobalVariable.isDemandRecorded){
+            for (AssignmentColumn_true assignmentColumn_true : assignmentColumns) {
+                assignmentColumn_true.isDemandsSatisfy=new boolean[locationAssignment.instance.getScenarios().size()];
+                assignmentColumn_true.demands=new short[locationAssignment.instance.getScenarios().size()];
+                for (int xi = 0; xi < locationAssignment.instance.getScenarios().size(); xi++) {
+                    Scenario scenario = locationAssignment.instance.getScenarios().get(xi);
+                    short demand = Util.getDemand(assignmentColumn_true.customers, scenario);
 
-                assignmentColumn_true.isDemandsSatisfy[xi] = (demand <= scenario.getWorkerCapacity()[assignmentColumn_true.worker.getIndex()]);
-                assignmentColumn_true.demands[xi] = demand ;
+                    assignmentColumn_true.isDemandsSatisfy[xi] = (demand <= scenario.getWorkerCapacity()[assignmentColumn_true.worker.getIndex()]);
+                    assignmentColumn_true.demands[xi] = demand ;
+                }
             }
         }
+
         initialObj = (int)obj;
         return assignmentColumns;
     }
