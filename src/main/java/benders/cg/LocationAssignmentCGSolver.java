@@ -107,14 +107,14 @@ public class LocationAssignmentCGSolver implements Callable<Void> {
 //        System.out.println("================ Solution ================");
         solutionCG = cg.getSolution();
         for (AssignmentColumn_true assignmentColumn : solutionCG) {
-            System.out.println(assignmentColumn);
+//            System.out.println(assignmentColumn);
         }
 //        System.out.println("CG"+scenario.getIndex()+" terminated with objective: " + cg.getObjective());
 //        System.out.println("Number of iterations: " + cg.getNumberOfIterations());
 //        System.out.println("Time spent on master: " + cg.getMasterSolveTime() + " time spent on pricing: " + cg.getPricingSolveTime());
 //        System.out.println("upper bound: " + upperBound);
 
-        System.out.println("CG for scenario " + scenario.getIndex() + "; obj: " + cg.getObjective() + "; iter: " + cg.getNumberOfIterations() + "; masterTime: " + cg.getMasterSolveTime() + ";pricingTime: " + cg.getPricingSolveTime());
+//        System.out.println("CG for scenario " + scenario.getIndex() + "; obj: " + cg.getObjective() + "; iter: " + cg.getNumberOfIterations() + "; masterTime: " + cg.getMasterSolveTime() + ";pricingTime: " + cg.getPricingSolveTime());
         String s = "objective and solving time: " + cg.getObjective() + " " + (cg.getMasterSolveTime() + cg.getPricingSolveTime()) + "\niteration number: " + cg.getNumberOfIterations() + "\nmaster solve time: " + cg.getMasterSolveTime() + "\npricing solve time: " + cg.getPricingSolveTime();
         BufferedWriter writer = null;
         try {

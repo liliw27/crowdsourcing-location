@@ -59,12 +59,13 @@ public class SampleSize {
     double UB;
     double ub1;
     double ub2;
+    double coeC = 0.5;
+    double coeW = 0.5;
     JDKRandomGenerator randomGenerator = new JDKRandomGenerator(0);
 
     public List<Scenario>[] getScenarioBatches(Instance instance, int N) {
         List<Scenario>[] scenarioBatches = new ArrayList[M];
-        double coeC = 0.5;
-        double coeW = 0.5;
+
         GammaDistribution[] gammacustomers = new GammaDistribution[instance.getCustomers().size()];
         GammaDistribution[] gammaworkers = new GammaDistribution[instance.getWorkers().size()];
         for (Customer customer : instance.getCustomers()) {
@@ -117,8 +118,6 @@ public class SampleSize {
 
     public List<Scenario> getScenarioEvaluation(Instance instance) {
         List<Scenario> scenarioEvaluation = new ArrayList<>();
-        double coeC = 0.5;
-        double coeW = 0.5;
         GammaDistribution[] gammacustomers = new GammaDistribution[instance.getCustomers().size()];
         GammaDistribution[] gammaworkers = new GammaDistribution[instance.getWorkers().size()];
         for (Customer customer : instance.getCustomers()) {
