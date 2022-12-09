@@ -343,7 +343,7 @@ public class SampleSize {
                 List<Scenario> scenarioEvaluation = sampleSize.getScenarioEvaluation(instance);
                 sampleSize.getUpperBound(instance, solution, scenarioEvaluation);
                 double gap = sampleSize.getGap();
-                String s = i * 10 + " " + j * 25 + " " + sampleSize.LNM + " " + sampleSize.lb1 + " " + sampleSize.lb2 + " " + sampleSize.UB + " " + sampleSize.ub1 + " " + sampleSize.ub2 + " " + gap;
+                String s = i * 10 + " " + j * 25 + " " + sampleSize.LNM + " " + sampleSize.lb1 + " " + sampleSize.lb2 + " " + sampleSize.UB + " " + sampleSize.ub1 + " " + sampleSize.ub2 + " " + gap+"\n";
                 bf.write(s);
                 bf.flush();
             }
