@@ -28,8 +28,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -346,8 +348,10 @@ public class SampleSize {
                 bf.flush();
             }
         }
-
-
+        SimpleDateFormat sdf = new SimpleDateFormat();// 格式化时间
+        sdf.applyPattern("yyyy-MM-dd HH:mm:ss a");// a为am/pm的标记
+        Date date = new Date();// 获取当前时间
+        System.out.println("现在时间：" + sdf.format(date)+ "finished!");
     }
 
 }
