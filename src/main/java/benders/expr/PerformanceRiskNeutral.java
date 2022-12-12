@@ -13,6 +13,7 @@ import model.Station;
 import model.Worker;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.random.JDKRandomGenerator;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import util.GlobalVariable;
 import util.Util;
 
@@ -170,12 +171,12 @@ public class PerformanceRiskNeutral {
         //generate all possible columns and calculate the travel cost
 
         instance.setScenarios(scenarios);
-        List<AssignmentColumn_true> assNegative=new ArrayList<>();
+        List<AssignmentColumn_true> assNegative = new ArrayList<>();
         for (AssignmentColumn_true assignmentColumn_true : GlobalVariable.columns) {
             assignmentColumn_true.isDemandsSatisfy = new boolean[instance.getScenarios().size()];
             assignmentColumn_true.demands = new short[instance.getScenarios().size()];
-            assignmentColumn_true.cost0=assignmentColumn_true.cost;
-            if(assignmentColumn_true.cost0<=0){
+            assignmentColumn_true.cost0 = assignmentColumn_true.cost;
+            if (assignmentColumn_true.cost0 <= 0) {
                 assNegative.add(assignmentColumn_true);
 
             }
@@ -208,7 +209,7 @@ public class PerformanceRiskNeutral {
         System.out.println("Starting branch and bound for " + instance.getName());
         mip.solve();
         runTime = System.currentTimeMillis() - runTime;
-
+        Solution solution = null;
         if (mip.isFeasible()) {
 
             System.out.println("Objective: " + mip.getObjectiveValue());
@@ -222,13 +223,31 @@ public class PerformanceRiskNeutral {
             System.out.println("expectedObj: " + mip.getExpectedObj());
             System.out.println("CVaR: " + mip.getCVaR());
             vs = mip.mipData.firstStageObj + mip.mipData.secondStageObj;
-//            solution = mip.mipData.solution;
+            solution = mip.mipData.solution;
 
         } else {
             System.out.println("MIP infeasible!");
         }
+
         String s = mip.getObjectiveValue() + " " + runTime + " " + mip.isOptimal() + " " + mip.getLowerBound() + " " + mip.getNrOfNodes() + " " + mip.mipData.optimalityCuts.size() + " " + mip.mipData.firstStageObj + " " + mip.mipData.secondStageObj + " " + (mip.mipData.firstStageObj + mip.mipData.secondStageObj) + " " + mip.mipData.expectedObj + " " + mip.mipData.CVaR + "\n";
-//        String s = mip.getObjectiveValue() + " " + runTime + " " + mip.isOptimal() + " " + mip.getLowerBound() + " " + mip.getNrOfNodes() + " " + mip.mipData.optimalityCuts.size() + " " + mip.getFirstStageObj() + " " + mip.getSecondStageObj() + " " + (mip.getFirstStageObj() + mip.getSecondStageObj()) + " " + mip.getExpectedObj() + " " + mip.getCVaR() + "\n";
+//        double evaluate[] = Util.evaluateDetail(instance, mip.mipData.solution, scenarios);
+//
+//        DescriptiveStatistics stats = new DescriptiveStatistics();
+//        for (int xi = 0; xi < scenarios.size(); xi++) {
+//            stats.addValue(evaluate[xi]);
+//        }
+//        double z = stats.getPercentile((int) (alpha * 100));
+//        double t = 0;
+//        for (int xi = 0; xi < scenarios.size(); xi++) {
+//            if (evaluate[xi] > z) {
+//                t += evaluate[xi];
+//            }
+//        }
+//        t = t / scenarios.size();
+//        double cvar = t / (1 - alpha) + z;
+//        double expe = stats.getMean();
+//        double second = lambda * cvar + (1 - lambda) * expe;
+        s += mip.getObjectiveValue() + " " + runTime + " " + mip.isOptimal() + " " + mip.getLowerBound() + " " + mip.getNrOfNodes() + " " + mip.mipData.optimalityCuts.size() + " " + mip.getFirstStageObj() + " " + mip.getSecondStageObj() + " " + (mip.getFirstStageObj() + mip.getSecondStageObj()) + " " + mip.getExpectedObj() + " " + mip.getCVaR() + "\n";
         if (GlobalVariable.ENUMERATE) {
             GlobalVariable.columns.clear();
         }
@@ -252,7 +271,7 @@ public class PerformanceRiskNeutral {
             double coeC = 0.4 + k * 0.1;
             double coeW = 0.4 + k * 0.1;
             List<Scenario> scenarios = Util.generateScenarios(instance, coeC, coeW, 50, randomGenerator);
-            for (int i =0; i <= 4; i++) {
+            for (int i = 0; i <= 4; i++) {
                 double lambda = i * 0.25;
                 for (int j = 0; j < 1; j++) {
                     double alpha = 0.7 + j * 0.1;

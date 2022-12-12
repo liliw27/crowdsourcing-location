@@ -53,6 +53,7 @@ public class SampleSize {
 
 
     Solution[] solutionsForLower = new Solution[M];
+    Solution[] solutionsForLower2 = new Solution[M];
 
     double LNM;
     double LNM2;
@@ -64,6 +65,9 @@ public class SampleSize {
     double UB;
     double ub1;
     double ub2;
+    double UB2;
+    double ub21;
+    double ub22;
     double coeC = 0.5;
     double coeW = 0.5;
     JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
@@ -180,6 +184,7 @@ public class SampleSize {
         List<Scenario>[] scenarioBatches = getScenarioBatches(instance, N);
         double[] lbForEachM = new double[M];
         double[] evaluate = new double[M];
+        double[] evaluate2 = new double[M];
         //generate all possible columns and calculate the travel cost
         for (int m = 0; m < M; m++) {
             instance.setScenarios(scenarioBatches[m]);
@@ -229,11 +234,16 @@ public class SampleSize {
                 System.out.println("CVaR: " + mip.mipData.CVaR);
                 lbForEachM[m] = mip.getObjectiveValue();
                 solutionsForLower[m] = mip.mipData.solution;
-
-                evaluate [m]= Util.evaluate(instance, mip.mipData.solution, scenarioBatches[m]);
+                solutionsForLower2[m] = new Solution(mip.getSolution(), instance.getStationCandidates().size());
+                evaluate[m] = Util.evaluate(instance, mip.mipData.solution, scenarioBatches[m]);
+                evaluate2[m] = Util.evaluate(instance, solutionsForLower2[m], scenarioBatches[m]);
             } else {
                 System.out.println("MIP infeasible!");
             }
+
+        }
+        for (int i = 0; i < M; i++) {
+            System.out.println("mip.getObjectiveValue: " + lbForEachM[i] + "evaluate2: " + evaluate2[i]+ "evaluate: " + evaluate[i]);
 
         }
         double avg = 0;
@@ -280,13 +290,13 @@ public class SampleSize {
     }
 
 
-    public Solution getEvaluatedSolution(Instance instance) throws XGBoostError, IOException, IloException {
+    public Solution getEvaluatedSolution(Instance instance,Solution[]solutionsForLower) throws XGBoostError, IOException, IloException {
         Solution solutionBest = solutionsForLower[0];
         double bestObj = Double.MAX_VALUE;
         List<Scenario>[] scenarioBatchesEval = getScenarioBatches(instance, 2 * N);
         for (int i = 0; i < M; i++) {
 
-            getUpperBound(instance, solutionsForLower[i], scenarioBatchesEval[i]);
+            getUpperBound(instance, solutionsForLower[i], scenarioBatchesEval[i],false);
 
             if (bestObj > UB) {
                 bestObj = UB;
@@ -296,7 +306,7 @@ public class SampleSize {
         return solutionBest;
     }
 
-    public void getUpperBound(Instance instance, Solution solution, List<Scenario> scenarioEvaluation) throws XGBoostError, IOException, IloException {
+    public void getUpperBound(Instance instance, Solution solution, List<Scenario> scenarioEvaluation,boolean is2) throws XGBoostError, IOException, IloException {
         instance.setScenarios(scenarioEvaluation);
         ExecutorService executor = Executors.newFixedThreadPool(Constants.MAXTHREADS);
         List<Future<Void>> futures = new ArrayList<>(scenarioEvaluation.size());
@@ -343,12 +353,18 @@ public class SampleSize {
         std = std / (scenarioEvaluation.size() - 1);
         std = Math.sqrt(std);
         double zscore = 1.96;
-        UB = solution.getFirstStageObj() + avg;
-        ub1 = UB - zscore * std;
-        ub2 = UB + zscore * std;
+        if(is2){
+            UB2 = solution.getFirstStageObj() + avg;
+            ub21 = UB2 - zscore * std;
+            ub22 = UB2 + zscore * std;
+        }else {
+            UB = solution.getFirstStageObj() + avg;
+            ub1 = UB - zscore * std;
+            ub2 = UB + zscore * std;
+        }
     }
 
-    public double getGap() {
+    public double getGap(double ub2,double lb1) {
         double gap = (ub2 - lb1) / ub2 * 100;
         return gap;
     }
@@ -370,12 +386,15 @@ public class SampleSize {
                 GlobalVariable.isDemandRecorded = true;
                 sampleSize.getLowerBound(instance);
                 GlobalVariable.isDemandRecorded = false;
-                Solution solution = sampleSize.getEvaluatedSolution(instance);
+                Solution solution = sampleSize.getEvaluatedSolution(instance, sampleSize.solutionsForLower);
+                Solution solution2 = sampleSize.getEvaluatedSolution(instance, sampleSize.solutionsForLower2);
                 List<Scenario> scenarioEvaluation = sampleSize.getScenarioEvaluation(instance);
-                sampleSize.getUpperBound(instance, solution, scenarioEvaluation);
-                double gap = sampleSize.getGap();
+                sampleSize.getUpperBound(instance, solution, scenarioEvaluation,false);
+                sampleSize.getUpperBound(instance, solution2, scenarioEvaluation,true);
+                double gap = sampleSize.getGap(sampleSize.ub2, sampleSize.lb1);
+                double gap2 = sampleSize.getGap(sampleSize.ub22, sampleSize.lb21);
                 runtime = System.currentTimeMillis() - runtime;
-                String s = i * 10 + " " + j * 25 + " " + runtime + " " + sampleSize.LNM + " " + sampleSize.lb1 + " " + sampleSize.lb2 + " " + sampleSize.UB + " " + sampleSize.ub1 + " " + sampleSize.ub2 + " " + gap + " " + sampleSize.LNM2 + " " + sampleSize.lb21 + " " + sampleSize.lb22+ "\n";
+                String s = i * 10 + " " + j * 25 + " " + runtime + " " + sampleSize.LNM + " " + sampleSize.lb1 + " " + sampleSize.lb2 + " " + sampleSize.UB + " " + sampleSize.ub1 + " " + sampleSize.ub2 + " " + gap + " " + sampleSize.LNM2 + " " + sampleSize.lb21 + " " + sampleSize.lb22 + " " + sampleSize.UB2 + " " + sampleSize.ub21 + " " + sampleSize.ub22 + " " + gap2+ "\n";
                 bf.write(s);
                 bf.flush();
             }

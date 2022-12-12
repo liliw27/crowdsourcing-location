@@ -150,6 +150,7 @@ public class Mip {
                     Station station = (Station) dataModel.getStationCandidates().get(s);
                     station.setCapacity(mipData.cplex.getValue(mipData.varsCapacity[s]));
                     System.out.println(station);
+                    solution.add(station);
                 }
             }
 
