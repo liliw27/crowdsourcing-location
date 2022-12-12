@@ -18,6 +18,7 @@ import java.util.Set;
 public class AssignmentColumn_true extends AbstractColumn<LocationAssignment, PricingProblem> implements Comparable<AssignmentColumn_true>, Cloneable {
 
     public double cost;
+    public double cost0;
     public final Worker worker;
     public final Set<Customer> customers;
     public final StationCandidate stationCandidate;
@@ -68,7 +69,7 @@ public class AssignmentColumn_true extends AbstractColumn<LocationAssignment, Pr
 
     @Override
     public int hashCode() {
-        return Objects.hash(cost, worker, customers, stationCandidate);
+        return Objects.hash( worker, customers, stationCandidate);
     }
 
 //    @Override
@@ -119,7 +120,7 @@ public class AssignmentColumn_true extends AbstractColumn<LocationAssignment, Pr
 
     @Override
     public String toString() {
-        String string = "Value: " + this.value + "ValueBest: " + this.valueBest + "cost: " + this.cost + " worker:" + worker.getIndex() + "; customers:";
+        String string = "Value: " + this.value + "cost0: " + this.cost0 + "cost: " + this.cost + " worker:" + worker.getIndex() + "; customers:";
         for (Customer customer : customers) {
             string += customer.getIndex() + ",";
         }

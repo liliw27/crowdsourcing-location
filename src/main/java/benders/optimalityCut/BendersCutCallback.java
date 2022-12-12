@@ -69,7 +69,7 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
             }
         }
         System.out.println(">>>>>>>>>>>>iter<<<<<<<<<<<<" + iter);
-        System.out.println("capacity: " + Arrays.toString(capacity));
+//        System.out.println("capacity: " + Arrays.toString(capacity));
 //        if(GlobalVariable.obj>this.getObjValue()){
 //            GlobalVariable.obj=this.getObjValue();
 //        }
@@ -118,9 +118,10 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
             valueZ = this.getValue(mipData.varz);
             for (Scenario scenario : dataModel.getScenarios()) {
                 q += objForEachScenario[scenario.getIndex()] * scenario.getProbability();
-                cvar += Math.max(0, objForEachScenario[scenario.getIndex()] - valueZ) * scenario.getProbability();
+                cvar += Math.max(0, objForEachScenario[scenario.getIndex()] - valueZ) * scenario.getProbability()/(1 - GlobalVariable.alpha);
             }
-            secondStageObj = GlobalVariable.lambda * (valueZ + cvar / (1 - GlobalVariable.alpha)) + (1 - GlobalVariable.lambda) * q;
+            cvar+=valueZ;
+            secondStageObj = GlobalVariable.lambda * cvar+ (1 - GlobalVariable.lambda) * q;
         } else {
             for (Scenario scenario : dataModel.getScenarios()) {
                 q += objForEachScenario[scenario.getIndex()] * scenario.getProbability();
@@ -149,9 +150,9 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
             valueQ = this.getValue(mipData.varQ);
         }
         System.out.println("###########################upperbound: " + upperBound + "; lowerbound: " + this.getObjValue() + "; bestObj: " + this.getBestObjValue() + "#######################");
-        System.out.println("the number of nodes processed so far in the active branch-and-cut search: " + this.getNnodes());
-        System.out.println("the number of nodes remaining to be processed: " + this.getNremainingNodes());
-        System.out.println("totalpenalty: " + dataModel.getTotalPenalty());
+//        System.out.println("the number of nodes processed so far in the active branch-and-cut search: " + this.getNnodes());
+//        System.out.println("the number of nodes remaining to be processed: " + this.getNremainingNodes());
+//        System.out.println("totalpenalty: " + dataModel.getTotalPenalty());
 
 
         if (System.currentTimeMillis() - GlobalVariable.timeStart > GlobalVariable.timeLimit) {
@@ -167,7 +168,7 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
         }
 
         long time = System.currentTimeMillis() - currentT;
-        System.out.println("cut generation time: " + time);
+//        System.out.println("cut generation time: " + time);
 
 
 //        executor.shutdownNow();

@@ -81,6 +81,12 @@ public class ModelBuilder {
             IloNumVar var = cplex.numVar(0, Integer.MAX_VALUE, "varQ_" + xi);
             varsQ[xi] = var;
         }
+
+        IloNumVar[] varst = new IloNumVar[dataModel.getScenarios().size()];
+        for (int xi = 0; xi < dataModel.getScenarios().size(); xi++) {
+            IloNumVar var = cplex.numVar(0, Integer.MAX_VALUE, "vart_" + xi);
+            varst[xi] = var;
+        }
         IloNumVar varQ = cplex.numVar(0, Integer.MAX_VALUE, "varQ");
         IloNumVar vart = cplex.numVar(0, Integer.MAX_VALUE, "vart");
 //        IloNumVar varQ= cplex.numVar(-100000,Integer.MAX_VALUE,"varQ");
@@ -98,9 +104,18 @@ public class ModelBuilder {
             obj.addTerm(capCost, varsCapacity[s]);
         }
         if (dataModel.isMultipleCut()) {
-            for (int xi = 0; xi < dataModel.getScenarios().size(); xi++) {
-                obj.addTerm(dataModel.getScenarios().get(xi).getProbability(), varsQ[xi]);
+            if (!dataModel.isCVaR()) {
+                for (int xi = 0; xi < dataModel.getScenarios().size(); xi++) {
+                    obj.addTerm(dataModel.getScenarios().get(xi).getProbability(), varsQ[xi]);
+                }
+            } else {
+                obj.addTerm(GlobalVariable.lambda, varz);
+                for (int xi = 0; xi < dataModel.getScenarios().size(); xi++) {
+                    obj.addTerm((1 - GlobalVariable.lambda) * dataModel.getScenarios().get(xi).getProbability(), varsQ[xi]);
+                    obj.addTerm(GlobalVariable.lambda / (1 - GlobalVariable.alpha) * dataModel.getScenarios().get(xi).getProbability(), varst[xi]);
+                }
             }
+
         } else {
             if (!dataModel.isCVaR()) {
                 obj.addTerm(1, varQ);
@@ -134,6 +149,16 @@ public class ModelBuilder {
             expr.addTerm(1, varsLocation[s]);
         }
         cplex.addGe(expr, 1, "at least one location");
+        if (dataModel.isMultipleCut() && dataModel.isCVaR()) {
+
+            for (int xi = 0; xi < dataModel.getScenarios().size(); xi++) {
+                IloLinearNumExpr expr0 = cplex.linearNumExpr();
+                expr0.addTerm(1, varsQ[xi]);
+                expr0.addTerm(-1, varz);
+                expr0.addTerm(-1, varst[xi]);
+                cplex.addLe(expr0, 0, "cvar_" + xi);
+            }
+        }
 //        IloLinearNumExpr expr0 = cplex.linearNumExpr();
 //        expr0.addTerm(1,varQ);
 //        expr0.addTerm(-1,varz);
@@ -141,7 +166,7 @@ public class ModelBuilder {
 //        cplex.addLe(expr0, 0, "CVaR" );
 
 
-        mipData = new MipData(cplex, varsLocation, varsCapacity, varsQ, varQ, vart, varz);
+        mipData = new MipData(cplex, varsLocation, varsCapacity, varsQ, varQ,varst, vart, varz);
         cplex.exportModel("mip.lp");
         cplex.use(new BendersCutCallback(dataModel, mipData));
     }

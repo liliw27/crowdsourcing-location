@@ -50,7 +50,7 @@ public class OptimalityCutGenerator extends CutGenerator {
                 if (q > valuesQ[xi] + Constants.EPSILON) {
 //                if ((q - valuesQ[xi]) / q > Constants.cutGenerationPrecision) {
 
-                    System.out.println("q: " + q + "valueQ: " + valuesQ[xi]);
+//                    System.out.println("q: " + q + "valueQ: " + valuesQ[xi]);
                     IloLinearNumExpr expr = mipData.cplex.linearNumExpr();
                     expr.addTerm(-1, mipData.varsQ[xi]);
                     double dualSum = 0;
@@ -69,7 +69,7 @@ public class OptimalityCutGenerator extends CutGenerator {
                     IloRange iloRange = mipData.cplex.le(expr, dualSum, "optimalityCut" + optimalityCuts.size());
                     inequalities.add(iloRange);
                     optimalityCuts.add(iloRange);
-                    System.out.println("add one cut!! total number of cuts" + optimalityCuts.size());
+//                    System.out.println("add one cut!! total number of cuts" + optimalityCuts.size());
                 }
             }
         } else {
@@ -80,8 +80,9 @@ public class OptimalityCutGenerator extends CutGenerator {
                 double t = 0;
                 for (int xi = 0; xi < instance.getScenarios().size(); xi++) {
                     Scenario scenario = instance.getScenarios().get(xi);
-//                    if (objForEachScenario[xi] > valuez + Constants.cutGenerationPrecision) {
-                    if ((objForEachScenario[xi] - valuez) / objForEachScenario[xi] > Constants.cutGenerationPrecision) {
+                    if (objForEachScenario[xi] > valuez + Constants.cutGenerationPrecision) {
+                        System.out.println("objForEachScenario_"+xi+": " +objForEachScenario[xi] + "valuez: " + valuez);
+//                    if ((objForEachScenario[xi] - valuez) / objForEachScenario[xi] > Constants.cutGenerationPrecision) {
                         expr0.addTerm(scenario.getProbability(), mipData.varz);
 
 

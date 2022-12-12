@@ -37,7 +37,7 @@ public class Constants {
     public static final int mipIter=10;
 
 
-    public static final int speed=50;//(km/h)
+    public static final int speed=20;//(km/h)
 
     public static final int deltaT=60;//min
     public static boolean cut=false;

@@ -104,9 +104,13 @@ public class VSS {
         return vs;
     }
 
-    public double vSingleScenario(Instance instance, Scenario scenario) throws IloException {
+    public double vSingleScenario(Instance instance, Scenario scenario) throws IloException, XGBoostError, IOException {
         double vdet = 0;
         List<Scenario> scenarios = Collections.singletonList(scenario);
+//        Set<Pair<Station, Worker>> pairSWSet = Util.getAvailableSWPair(instance.getStationCandidates(), instance.getWorkers(), instance.getTravelCostMatrix());
+//        Map<Pair<Station, Worker>, Set<Customer>> unavailableSWPMap = Util.getUnavailablePairSWPMap(pairSWSet, instance.getCustomers(), instance.getTravelCostMatrix());
+//        GlobalVariable.columns = Util.generateJob(instance.getCustomers(), pairSWSet, unavailableSWPMap, instance, 0);
+
         instance.setScenarios(scenarios);
         for (AssignmentColumn_true assignmentColumn_true : GlobalVariable.columns) {
             assignmentColumn_true.isDemandsSatisfy = new boolean[instance.getScenarios().size()];
@@ -193,21 +197,36 @@ public class VSS {
         File file = new File("dataset/instance/S30_W120_P40new.txt");
         GlobalVariable.isReadMatrix = true;
 
-        Instance instance = Reader.readInstance(file, 50, 0, 10, 20, 20, 1);
-        JDKRandomGenerator randomGenerator = new JDKRandomGenerator(0);
+
+        Instance instance = Reader.readInstance(file, 50, 0, 10, 20, 40, 1);
+
+        JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
         List<Scenario> scenarios = Util.generateScenarios(instance, 0.5, 0.5, 50, randomGenerator);
         instance.setMultipleCut(true);
-
+        GlobalVariable.isDemandTricky=true;
         double vs = vss.vs(instance, scenarios);
         Scenario scenario = vss.getDeterminantScenario(instance);
         double vDET0 = vss.vSingleScenario(instance, scenario);
-        double vDET = Util.evaluate(instance, vss.solution, scenarios);
-
+        double vDET =Util.evaluate(instance, vss.solution, scenarios);
+        double vDET2 =0;
+        for(int xi=0;xi<scenarios.size();xi++){
+            Scenario scenario2=scenarios.get(xi);
+            double pro=scenario2.getProbability();
+            scenario2.setIndex(0);
+            scenario2.setProbability(1);
+            double vDET02= vss.vSingleScenario(instance, scenario2);
+            scenario2.setIndex(xi);
+            scenario2.setProbability(pro);
+            vDET2+= Util.evaluate(instance, vss.solution, scenarios);
+        }
+        vDET2/=scenarios.size();
         System.out.println("vs: " + vs);
-
         System.out.println("vDET: " + vDET);
+        System.out.println("vDET2: " + vDET);
         double gap = (vDET - vs) / vDET * 100;
+        double gap2 = (vDET2 - vs) / vDET2 * 100;
         System.out.println("relative gap: " + gap);
+        System.out.println("relative gap2: " + gap2);
     }
 
 }

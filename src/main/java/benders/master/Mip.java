@@ -72,18 +72,29 @@ public class Mip {
             this.isFeasible = true;
             if (dataModel.isMultipleCut()) {
                 double[] valuesQ = mipData.cplex.getValues(mipData.varsQ);
-
                 for (int xi = 0; xi < dataModel.getScenarios().size(); xi++) {
                     this.expectedObj += dataModel.getScenarios().get(xi).getProbability() * valuesQ[xi];
+                }
+                if (dataModel.isCVaR()) {
+                    double[] valuest = mipData.cplex.getValues(mipData.varst);
+                    for (int xi = 0; xi < dataModel.getScenarios().size(); xi++) {
+                        this.CVaR += dataModel.getScenarios().get(xi).getProbability() * valuest[xi] / (1 - GlobalVariable.alpha) ;
+                        System.out.println("xi_"+xi+" valuet: "+valuest[xi]+" valueq: "+valuesQ[xi]);
+
+                    }
+                    this.CVaR+= mipData.cplex.getValue(mipData.varz);
+                    System.out.println(" valuez: "+mipData.cplex.getValue(mipData.varz));
                 }
 
             } else {
                 this.expectedObj = mipData.cplex.getValue(mipData.varQ);
+                if (dataModel.isCVaR()) {
+                    double vartValue=mipData.cplex.getValue(mipData.vart);
+                    double varzValue=mipData.cplex.getValue(mipData.varz);
+                    this.CVaR = vartValue / (1 - GlobalVariable.alpha) + varzValue;
+                }
+            }
 
-            }
-            if (dataModel.isCVaR()) {
-                this.CVaR = mipData.cplex.getValue(mipData.vart) / (1 - GlobalVariable.alpha) + mipData.cplex.getValue(mipData.varz);
-            }
             this.secondStageObj = GlobalVariable.lambda * this.CVaR + (1 - GlobalVariable.lambda) * this.expectedObj;
             this.firstStageObj = this.objectiveValue - secondStageObj;
         } else if (mipData.cplex.getStatus() == IloCplex.Status.Infeasible) {

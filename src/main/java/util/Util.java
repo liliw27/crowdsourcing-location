@@ -427,7 +427,8 @@ public class Util {
 
             if (count > 0) {
                 Booster booster = XGBoost.loadModel("model_2real.bin");//"model_2real.bin"
-                DMatrix dtest = new DMatrix("dataset/predict.svm.txt#dtest" + it + ".cache");
+                DMatrix dtest = new DMatrix("dataset/predict.svm.txt");
+//                DMatrix dtest = new DMatrix("dataset/predict.svm.txt#dtest" + it + ".cache");
 // predict
                 predicts = booster.predict(dtest);
                 System.out.println("run time of xgb prediction" + (System.currentTimeMillis() - runTime));
@@ -445,6 +446,7 @@ public class Util {
                     }
 //                    assignmentColumn.cost = ((travelTime - instance.getTravelCostMatrix()[assignmentColumn.worker.getIndexO()][assignmentColumn.worker.getIndexD()]) * Constants.speed * 1.0) / 60;
                     assignmentColumn.cost = instance.getCompensation() * (travelTime - assignmentColumn.worker.getTravelTOD()) / 60;
+//                    assignmentColumn.cost = instance.getCompensation() * (travelTime ) / 60;
 
                 }
                 columnSet.removeAll(removeColum);
@@ -460,7 +462,7 @@ public class Util {
                     continue;
                 }
                 double travelTime = Util.calTravelTime0(pair.getRight(), pair.getLeft(), parcel, instance.getTravelCostMatrix());
-                if (travelTime > pair.getRight().getMaxDetour()) {
+                if (travelTime > pair.getRight().getMaxDetour()+pair.getRight().getTravelTOD()) {
                     continue;
                 }
                 Set<Customer> customers = new HashSet<>();
@@ -469,6 +471,7 @@ public class Util {
                 assignmentColumn.isDemandsSatisfy = new boolean[instance.getScenarios().size()];
                 assignmentColumn.demands = new short[instance.getScenarios().size()];
                 assignmentColumn.cost = instance.getCompensation() * (travelTime - pair.getRight().getTravelTOD()) / 60;
+//                assignmentColumn.cost = instance.getCompensation() * (travelTime ) / 60;
 //                assignmentColumn.cost = ((travelTime - pair.getRight().getTravelTOD()) * Constants.speed * 1.0) / 60;
 
                 columnSet.add(assignmentColumn);

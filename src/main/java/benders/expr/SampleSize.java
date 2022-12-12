@@ -63,7 +63,8 @@ public class SampleSize {
     double ub2;
     double coeC = 0.5;
     double coeW = 0.5;
-    JDKRandomGenerator randomGenerator = new JDKRandomGenerator(0);
+    JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
+
 
     public List<Scenario>[] getScenarioBatches(Instance instance, int N) {
         List<Scenario>[] scenarioBatches = new ArrayList[M];
@@ -222,7 +223,7 @@ public class SampleSize {
                 System.out.println("firstplussecond: " + (mip.mipData.firstStageObj + mip.mipData.secondStageObj));
                 System.out.println("expectedObj: " + mip.mipData.expectedObj);
                 System.out.println("CVaR: " + mip.mipData.CVaR);
-                lbForEachM[m] = mip.mipData.firstStageObj + mip.mipData.secondStageObj;
+                lbForEachM[m] = mip.getObjectiveValue();
                 solutionsForLower[m] = mip.mipData.solution;
 
             } else {
@@ -304,7 +305,7 @@ public class SampleSize {
         }
         avg = avg / scenarioEvaluation.size();
 
-
+        avg+=solution.getFirstStageObj();
         double std = 0;
 
         for (int m = 0; m < M; m++) {
@@ -331,12 +332,13 @@ public class SampleSize {
         BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/sampleSize.txt", true));
         bf.write("Customer Sample LNB lb1 lb2 UB ub1 ub2 gap\n");
 
-        for (int i = 1; i <= 3; i++) {
+        for (int i = 1; i <= 1; i++) {
             Instance instance = Reader.readInstance(file, 50, 0, 5 * i, 10 * i, 20 * i, 1);
 
             for (int j = 1; j <= 4; j++) {
                 sampleSize.N = j * 25;
                 instance.setMultipleCut(true);
+                GlobalVariable.isDemandRecorded = true;
                 sampleSize.getLowerBound(instance);
                 GlobalVariable.isDemandRecorded = false;
                 Solution solution = sampleSize.getEvaluatedSolution(instance);
