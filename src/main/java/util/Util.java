@@ -427,7 +427,8 @@ public class Util {
 
             if (count > 0) {
                 Booster booster = XGBoost.loadModel("model_2real.bin");//"model_2real.bin"
-                DMatrix dtest = new DMatrix("dataset/predict.svm.txt#dtest" + it + ".cache");
+                DMatrix dtest = new DMatrix("dataset/predict.svm.txt");
+//                DMatrix dtest = new DMatrix("dataset/predict.svm.txt#dtest" + it + ".cache");
 // predict
                 predicts = booster.predict(dtest);
                 System.out.println("run time of xgb prediction" + (System.currentTimeMillis() - runTime));
@@ -445,6 +446,7 @@ public class Util {
                     }
 //                    assignmentColumn.cost = ((travelTime - instance.getTravelCostMatrix()[assignmentColumn.worker.getIndexO()][assignmentColumn.worker.getIndexD()]) * Constants.speed * 1.0) / 60;
                     assignmentColumn.cost = instance.getCompensation() * (travelTime - assignmentColumn.worker.getTravelTOD()) / 60;
+//                    assignmentColumn.cost = instance.getCompensation() * (travelTime ) / 60;
 
                 }
                 columnSet.removeAll(removeColum);
@@ -460,7 +462,7 @@ public class Util {
                     continue;
                 }
                 double travelTime = Util.calTravelTime0(pair.getRight(), pair.getLeft(), parcel, instance.getTravelCostMatrix());
-                if (travelTime > pair.getRight().getMaxDetour()) {
+                if (travelTime > pair.getRight().getMaxDetour()+pair.getRight().getTravelTOD()) {
                     continue;
                 }
                 Set<Customer> customers = new HashSet<>();
@@ -469,6 +471,7 @@ public class Util {
                 assignmentColumn.isDemandsSatisfy = new boolean[instance.getScenarios().size()];
                 assignmentColumn.demands = new short[instance.getScenarios().size()];
                 assignmentColumn.cost = instance.getCompensation() * (travelTime - pair.getRight().getTravelTOD()) / 60;
+//                assignmentColumn.cost = instance.getCompensation() * (travelTime ) / 60;
 //                assignmentColumn.cost = ((travelTime - pair.getRight().getTravelTOD()) * Constants.speed * 1.0) / 60;
 
                 columnSet.add(assignmentColumn);
@@ -803,6 +806,60 @@ public class Util {
         avg = avg / scenarioEvaluation.size();
         avg = solution.getFirstStageObj() + avg;
         return avg;
+    }
+
+    public static String sensitivityAnalysis(Instance instance, Solution solution, List<Scenario> scenarioEvaluation) throws XGBoostError, IOException, IloException {
+        instance.setScenarios(scenarioEvaluation);
+        for (AssignmentColumn_true assignmentColumn_true : GlobalVariable.columns) {
+            assignmentColumn_true.isDemandsSatisfy = new boolean[instance.getScenarios().size()];
+            assignmentColumn_true.demands = new short[instance.getScenarios().size()];
+            for (int xi = 0; xi < instance.getScenarios().size(); xi++) {
+
+                Scenario scenario0 = instance.getScenarios().get(xi);
+                short demand = Util.getDemand(assignmentColumn_true.customers, scenario0);
+
+                assignmentColumn_true.isDemandsSatisfy[xi] = (demand <= scenario0.getWorkerCapacity()[assignmentColumn_true.worker.getIndex()]);
+                assignmentColumn_true.demands[xi] = demand;
+            }
+        }
+        ExecutorService executor = Executors.newFixedThreadPool(Constants.MAXTHREADS);
+        List<Future<Void>> futures = new ArrayList<>(scenarioEvaluation.size());
+        //generate all possible columns and calculate the travel cost
+        List<LocationAssignmentCGSolver> cgSolvers = new ArrayList<>(scenarioEvaluation.size());
+        double[] objForEachScenario = new double[scenarioEvaluation.size()];
+        for (int m = 0; m < scenarioEvaluation.size(); m++) {
+            Scenario scenario = scenarioEvaluation.get(m);
+
+            LocationAssignment locationAssignment = new LocationAssignment(instance, solution.getCapacity());
+            LocationAssignmentCGSolver cgSolver = new LocationAssignmentCGSolver(locationAssignment, scenario);
+            cgSolvers.add(cgSolver);
+//            cgSolver.solveCG();
+            Future<Void> f = executor.submit(cgSolver);
+            futures.add(f);
+
+
+        }
+        for (Future<Void> f : futures) {
+            try {
+                f.get(); //get() is a blocking procedure
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        double avg = 0;
+
+        for (int i = 0; i < cgSolvers.size(); i++) {
+            LocationAssignmentCGSolver cgSolver = cgSolvers.get(i);
+            objForEachScenario[i] = cgSolver.getObjectiveValue() + instance.getUnservedPenalty() * scenarioEvaluation.get(i).getDemandTotal();
+            avg += objForEachScenario[i];
+        }
+        avg = avg / scenarioEvaluation.size();
+        avg = solution.getFirstStageObj() + avg;
+        String s="";
+
+        return s;
     }
 
 }

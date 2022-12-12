@@ -27,7 +27,7 @@ public class MipData {
     public Map<String, double[]>[] dualCostsMaps;
     public double[] objForEachScenario;
     //second stage decision variable
-
+    IloNumVar[] varst;
     public IloNumVar vart;
     public IloNumVar varz;
 
@@ -39,12 +39,13 @@ public class MipData {
     public Solution solution;
     public final List<IloRange> optimalityCuts;
 
-    public MipData(IloCplex cplex, IloIntVar[] varsLocation, IloNumVar[] varsCapacity, IloNumVar[] varsQ, IloNumVar varQ, IloNumVar vart, IloNumVar varz) {
+    public MipData(IloCplex cplex, IloIntVar[] varsLocation, IloNumVar[] varsCapacity, IloNumVar[] varsQ, IloNumVar varQ, IloNumVar[] varst,IloNumVar vart, IloNumVar varz) {
         this.cplex = cplex;
         this.varsLocation = varsLocation;
         this.varsCapacity = varsCapacity;
         this.varsQ = varsQ;
         this.varQ = varQ;
+        this.varst=varst;
         this.vart = vart;
         this.varz = varz;
         this.optimalityCuts = new ArrayList<>();

@@ -55,6 +55,9 @@ public class SampleSize {
     Solution[] solutionsForLower = new Solution[M];
 
     double LNM;
+    double LNM2;
+    double lb21;
+    double lb22;
     double lb1;
     double lb2;
 
@@ -63,7 +66,8 @@ public class SampleSize {
     double ub2;
     double coeC = 0.5;
     double coeW = 0.5;
-    JDKRandomGenerator randomGenerator = new JDKRandomGenerator(0);
+    JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
+
 
     public List<Scenario>[] getScenarioBatches(Instance instance, int N) {
         List<Scenario>[] scenarioBatches = new ArrayList[M];
@@ -175,6 +179,7 @@ public class SampleSize {
         GlobalVariable.columns = Util.generateJob(instance.getCustomers(), pairSWSet, unavailableSWPMap, instance, 0);
         List<Scenario>[] scenarioBatches = getScenarioBatches(instance, N);
         double[] lbForEachM = new double[M];
+        double[] evaluate = new double[M];
         //generate all possible columns and calculate the travel cost
         for (int m = 0; m < M; m++) {
             instance.setScenarios(scenarioBatches[m]);
@@ -222,9 +227,10 @@ public class SampleSize {
                 System.out.println("firstplussecond: " + (mip.mipData.firstStageObj + mip.mipData.secondStageObj));
                 System.out.println("expectedObj: " + mip.mipData.expectedObj);
                 System.out.println("CVaR: " + mip.mipData.CVaR);
-                lbForEachM[m] = mip.mipData.firstStageObj + mip.mipData.secondStageObj;
+                lbForEachM[m] = mip.getObjectiveValue();
                 solutionsForLower[m] = mip.mipData.solution;
 
+                evaluate [m]= Util.evaluate(instance, mip.mipData.solution, scenarioBatches[m]);
             } else {
                 System.out.println("MIP infeasible!");
             }
@@ -232,7 +238,7 @@ public class SampleSize {
         }
         double avg = 0;
         for (int m = 0; m < M; m++) {
-            avg += lbForEachM[m];
+            avg += evaluate[m];
         }
         avg = avg / M;
         LNM = avg;
@@ -240,7 +246,7 @@ public class SampleSize {
         double std = 0;
 
         for (int m = 0; m < M; m++) {
-            std += (lbForEachM[m] - avg) * (lbForEachM[m] - avg);
+            std += (evaluate[m] - avg) * (evaluate[m] - avg);
         }
         std = std / M;
         std = std / (M - 1);
@@ -248,6 +254,29 @@ public class SampleSize {
         double zscore = 1.96;
         lb1 = LNM - zscore * std;
         lb2 = LNM + zscore * std;
+
+        avg = 0;
+        for (int m = 0; m < M; m++) {
+            avg += lbForEachM[m];
+        }
+        avg = avg / M;
+        LNM2 = avg;
+
+        std = 0;
+
+        for (int m = 0; m < M; m++) {
+            std += (lbForEachM[m] - avg) * (lbForEachM[m] - avg);
+        }
+        std = std / M;
+        std = std / (M - 1);
+        std = Math.sqrt(std);
+        zscore = 1.96;
+        lb21 = LNM2 - zscore * std;
+        lb22 = LNM2 + zscore * std;
+//        for(int i=0;i<M;i++){
+//            System.out.println("mip.getObjectiveValue: " + lbForEachM[i] + "evaluate: " + evaluate [i]);
+//
+//        }
     }
 
 
@@ -304,7 +333,7 @@ public class SampleSize {
         }
         avg = avg / scenarioEvaluation.size();
 
-
+        avg += solution.getFirstStageObj();
         double std = 0;
 
         for (int m = 0; m < M; m++) {
@@ -330,20 +359,23 @@ public class SampleSize {
         GlobalVariable.isReadMatrix = true;
         BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/sampleSize.txt", true));
         bf.write("Customer Sample LNB lb1 lb2 UB ub1 ub2 gap\n");
-
-        for (int i = 1; i <= 3; i++) {
+        GlobalVariable.isDemandTricky = true;
+        for (int i = 1; i <= 1; i++) {
             Instance instance = Reader.readInstance(file, 50, 0, 5 * i, 10 * i, 20 * i, 1);
 
             for (int j = 1; j <= 4; j++) {
+                long runtime = System.currentTimeMillis();
                 sampleSize.N = j * 25;
                 instance.setMultipleCut(true);
+                GlobalVariable.isDemandRecorded = true;
                 sampleSize.getLowerBound(instance);
                 GlobalVariable.isDemandRecorded = false;
                 Solution solution = sampleSize.getEvaluatedSolution(instance);
                 List<Scenario> scenarioEvaluation = sampleSize.getScenarioEvaluation(instance);
                 sampleSize.getUpperBound(instance, solution, scenarioEvaluation);
                 double gap = sampleSize.getGap();
-                String s = i * 10 + " " + j * 25 + " " + sampleSize.LNM + " " + sampleSize.lb1 + " " + sampleSize.lb2 + " " + sampleSize.UB + " " + sampleSize.ub1 + " " + sampleSize.ub2 + " " + gap+"\n";
+                runtime = System.currentTimeMillis() - runtime;
+                String s = i * 10 + " " + j * 25 + " " + runtime + " " + sampleSize.LNM + " " + sampleSize.lb1 + " " + sampleSize.lb2 + " " + sampleSize.UB + " " + sampleSize.ub1 + " " + sampleSize.ub2 + " " + gap + " " + sampleSize.LNM2 + " " + sampleSize.lb21 + " " + sampleSize.lb22+ "\n";
                 bf.write(s);
                 bf.flush();
             }
@@ -351,7 +383,7 @@ public class SampleSize {
         SimpleDateFormat sdf = new SimpleDateFormat();// 格式化时间
         sdf.applyPattern("yyyy-MM-dd HH:mm:ss a");// a为am/pm的标记
         Date date = new Date();// 获取当前时间
-        System.out.println("现在时间：" + sdf.format(date)+ "finished!");
+        System.out.println("现在时间：" + sdf.format(date) + "finished!");
     }
 
 }
