@@ -45,10 +45,10 @@ public class ModelBuilder {
         mipData.cplex.setParam(IloCplex.IntParam.NodeLim, 210000000); //Continue search
         //mipDataS.cplex.setParam(IloCplex.BooleanParam.PreInd, false);
         mipData.cplex.setParam(IloCplex.Param.TimeLimit, 7200); //set time limit in seconds
-        mipData.cplex.setParam(IloCplex.IntParam.Threads, Constants.MAXTHREADS);
+        mipData.cplex.setParam(IloCplex.IntParam.Threads, 1);
         mipData.cplex.setParam(IloCplex.IntParam.NodeFileInd, 3);
         mipData.cplex.setParam(IloCplex.IntParam.WorkMem, 4096);
-        mipData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Optimality, 0.000001);
+        mipData.cplex.setParam(IloCplex.Param.Simplex.Tolerances.Optimality, 0.00001);
         mipData.cplex.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.01);
 //        mipData.cplex.setParam(IloCplex.Param.MIP.Strategy.NodeSelect,0);
 

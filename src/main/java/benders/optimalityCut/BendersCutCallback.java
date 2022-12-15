@@ -164,7 +164,7 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
         OptimalityCutGenerator cutGen = new OptimalityCutGenerator(dataModel, mipData, valuesQ, valueQ, valueZ, optimalityCuts, q);
         List<IloRange> optimalityCuts = cutGen.generateInqualities();
         for (IloRange optimalityCut : optimalityCuts) {
-            this.add(optimalityCut);
+            this.addLocal(optimalityCut);
         }
 
         long time = System.currentTimeMillis() - currentT;

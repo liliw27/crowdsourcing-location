@@ -229,7 +229,7 @@ public class PerformanceRiskNeutral {
             System.out.println("MIP infeasible!");
         }
 
-        String s = mip.getObjectiveValue() + " " + runTime + " " + mip.isOptimal() + " " + mip.getLowerBound() + " " + mip.getNrOfNodes() + " " + mip.mipData.optimalityCuts.size() + " " + mip.mipData.firstStageObj + " " + mip.mipData.secondStageObj + " " + (mip.mipData.firstStageObj + mip.mipData.secondStageObj) + " " + mip.mipData.expectedObj + " " + mip.mipData.CVaR + "\n";
+        String s = mip.getObjectiveValue() + " " + runTime + " " + mip.isOptimal() + " " + mip.getLowerBound() + " " + mip.getNrOfNodes() + " " + mip.mipData.optimalityCuts.size() + " " + mip.mipData.solution.getStations().size() + " " + mip.mipData.firstStageObj + " " + mip.mipData.secondStageObj + " " + (mip.mipData.firstStageObj + mip.mipData.secondStageObj) + " " + mip.mipData.expectedObj + " " + mip.mipData.CVaR + "\n";
 //        double evaluate[] = Util.evaluateDetail(instance, mip.mipData.solution, scenarios);
 //
 //        DescriptiveStatistics stats = new DescriptiveStatistics();
@@ -247,7 +247,7 @@ public class PerformanceRiskNeutral {
 //        double cvar = t / (1 - alpha) + z;
 //        double expe = stats.getMean();
 //        double second = lambda * cvar + (1 - lambda) * expe;
-        s += mip.getObjectiveValue() + " " + runTime + " " + mip.isOptimal() + " " + mip.getLowerBound() + " " + mip.getNrOfNodes() + " " + mip.mipData.optimalityCuts.size() + " " + mip.getFirstStageObj() + " " + mip.getSecondStageObj() + " " + (mip.getFirstStageObj() + mip.getSecondStageObj()) + " " + mip.getExpectedObj() + " " + mip.getCVaR() + "\n";
+        s += mip.getObjectiveValue() + " " + runTime + " " + mip.isOptimal() + " " + mip.getLowerBound() + " " + mip.getNrOfNodes() + " " + mip.mipData.optimalityCuts.size() + " " + mip.getSolution().size() + " " + mip.getFirstStageObj() + " " + mip.getSecondStageObj() + " " + (mip.getFirstStageObj() + mip.getSecondStageObj()) + " " + mip.getExpectedObj() + " " + mip.getCVaR() + "\n";
         if (GlobalVariable.ENUMERATE) {
             GlobalVariable.columns.clear();
         }
@@ -261,20 +261,20 @@ public class PerformanceRiskNeutral {
         GlobalVariable.isReadMatrix = true;
         BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/performanceRiskAdverse.txt", true));
 
-        Instance instance = Reader.readInstance(file, 1, 0, 5, 10, 20, 1);
+        Instance instance = Reader.readInstance(file, 1, 0, 5, 10, 20, 0.5);
         JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
 
         bf.write("coeC lambda alpha Runtime Isoptimal Bound Nodes Cuts firstStage secondStage firstplussecond expectedObj CVaR\n");
         GlobalVariable.isDemandTricky = false;
         instance.setMultipleCut(true);
-        for (int k = 0; k <= 0; k++) {
-            double coeC = 0.4 + k * 0.1;
-            double coeW = 0.4 + k * 0.1;
+        for (int k = 0; k <= 2; k++) {
+            double coeC = 0.25 + k * 0.25;
+            double coeW = 0.25 + k * 0.25;
             List<Scenario> scenarios = Util.generateScenarios(instance, coeC, coeW, 50, randomGenerator);
+            for (int j = 0; j <= 2; j++) {
+                double alpha = 0.7 + j * 0.1;
             for (int i = 0; i <= 4; i++) {
                 double lambda = i * 0.25;
-                for (int j = 0; j < 1; j++) {
-                    double alpha = 0.7 + j * 0.1;
                     String s = coeC + " " + lambda + " " + alpha + " " + performanceRiskNeutral.saaCVaR(instance, scenarios, lambda, alpha);
                     bf.write(s);
                     bf.flush();

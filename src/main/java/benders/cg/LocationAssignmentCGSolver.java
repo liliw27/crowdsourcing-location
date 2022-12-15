@@ -40,7 +40,7 @@ public class LocationAssignmentCGSolver implements Callable<Void> {
     private final LocationAssignment locationAssignment;
     private int initialObj;
     List<PricingProblem> pricingProblems = new ArrayList<>();
-    List<AssignmentColumn_true> solutionCG;
+    public List<AssignmentColumn_true> solutionCG;
     int upperBound;
     Scenario scenario;
 

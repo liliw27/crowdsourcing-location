@@ -76,7 +76,7 @@ public class Util {
         return travelTime;
     }
 
-    public static double getCostE(Set<Customer> customers, Worker worker, StationCandidate stationCandidate, Instance instance,Scenario scenario) {
+    public static double getCostE(Set<Customer> customers, Worker worker, StationCandidate stationCandidate, Instance instance, Scenario scenario) {
         double cost = 0;
         if (customers.size() == 0) {
             return 1000;
@@ -140,7 +140,7 @@ public class Util {
         cost = cost - (instance.getCompensation() * worker.getTravelTOD() * 1.0) / 60;
 
         for (Customer customer : customers) {
-            cost -= GlobalVariable.daysNum *scenario.getCustomerDemand()[customer.getIndex()]* customer.getUnservedPenalty();
+            cost -= GlobalVariable.daysNum * scenario.getCustomerDemand()[customer.getIndex()] * customer.getUnservedPenalty();
 
         }
         return cost;
@@ -462,7 +462,7 @@ public class Util {
                     continue;
                 }
                 double travelTime = Util.calTravelTime0(pair.getRight(), pair.getLeft(), parcel, instance.getTravelCostMatrix());
-                if (travelTime > pair.getRight().getMaxDetour()+pair.getRight().getTravelTOD()) {
+                if (travelTime > pair.getRight().getMaxDetour() + pair.getRight().getTravelTOD()) {
                     continue;
                 }
                 Set<Customer> customers = new HashSet<>();
@@ -736,11 +736,20 @@ public class Util {
             availableWorkers.addAll(instance.getWorkers());
             int totalD = 0;
             for (int j = 0; j < instance.getCustomers().size(); j++) {
-                customerDemand[j] = (int) gammacustomers[j].sample();
+                if (coeC > 0.01) {
+                    customerDemand[j] = (int) gammacustomers[j].sample();
+                } else {
+                    customerDemand[j] = instance.getCustomers().get(j).getDemandExpected();
+                }
                 totalD += customerDemand[j];
             }
             for (int j = 0; j < instance.getWorkers().size(); j++) {
-                workerCapacity[j] = (int) gammaworkers[j].sample();
+                if (coeC < 0.99) {
+                    workerCapacity[j] = (int) gammaworkers[j].sample();
+
+                } else {
+                    workerCapacity[j] = instance.getWorkers().get(j).getCapacity();
+                }
             }
 
 
@@ -806,6 +815,92 @@ public class Util {
         avg = avg / scenarioEvaluation.size();
         avg = solution.getFirstStageObj() + avg;
         return avg;
+    }
+
+    public static String evaluateSensitivity(Instance instance, Solution solution, List<Scenario> scenarioEvaluation) throws XGBoostError, IOException, IloException {
+        instance.setScenarios(scenarioEvaluation);
+        for (AssignmentColumn_true assignmentColumn_true : GlobalVariable.columns) {
+            assignmentColumn_true.isDemandsSatisfy = new boolean[instance.getScenarios().size()];
+            assignmentColumn_true.demands = new short[instance.getScenarios().size()];
+            for (int xi = 0; xi < instance.getScenarios().size(); xi++) {
+
+                Scenario scenario0 = instance.getScenarios().get(xi);
+                short demand = Util.getDemand(assignmentColumn_true.customers, scenario0);
+
+                assignmentColumn_true.isDemandsSatisfy[xi] = (demand <= scenario0.getWorkerCapacity()[assignmentColumn_true.worker.getIndex()]);
+                assignmentColumn_true.demands[xi] = demand;
+            }
+        }
+        ExecutorService executor = Executors.newFixedThreadPool(Constants.MAXTHREADS);
+        List<Future<Void>> futures = new ArrayList<>(scenarioEvaluation.size());
+        //generate all possible columns and calculate the travel cost
+        List<LocationAssignmentCGSolver> cgSolvers = new ArrayList<>(scenarioEvaluation.size());
+        double[] objForEachScenario = new double[scenarioEvaluation.size()];
+        for (int m = 0; m < scenarioEvaluation.size(); m++) {
+            Scenario scenario = scenarioEvaluation.get(m);
+
+            LocationAssignment locationAssignment = new LocationAssignment(instance, solution.getCapacity());
+            LocationAssignmentCGSolver cgSolver = new LocationAssignmentCGSolver(locationAssignment, scenario);
+            cgSolvers.add(cgSolver);
+//            cgSolver.solveCG();
+            Future<Void> f = executor.submit(cgSolver);
+            futures.add(f);
+
+
+        }
+        for (Future<Void> f : futures) {
+            try {
+                f.get(); //get() is a blocking procedure
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+
+        double demandSatisfiedByCrowd = 0;
+        double util1 = 0;
+        double util2 = 0;
+        double usage1 = 0;
+        double usage2 = 0;
+
+        double demand = 0;
+        double totalDemand = 0;
+        double capacity = 0;
+        double totalcapacity = 0;
+        double totaldemandSatisfiedByCrowd = 0;
+
+        for (int i = 0; i < cgSolvers.size(); i++) {
+            LocationAssignmentCGSolver cgSolver = cgSolvers.get(i);
+            Scenario scenario = scenarioEvaluation.get(i);
+            List<AssignmentColumn_true> solutionCG = cgSolver.solutionCG;
+            demand = scenario.getDemandTotal();
+            capacity = 0;
+            demandSatisfiedByCrowd = 0;
+            for (Worker worker : instance.getWorkers()) {
+                capacity += scenario.getWorkerCapacity()[worker.getIndex()];
+            }
+            for (AssignmentColumn_true assignmentColumn_true : solutionCG) {
+                demandSatisfiedByCrowd += assignmentColumn_true.value * Util.getDemand(assignmentColumn_true.customers, scenarioEvaluation.get(i));
+            }
+            totalDemand += demand;
+            totalcapacity += capacity;
+            totaldemandSatisfiedByCrowd += demandSatisfiedByCrowd;
+            util1 += demandSatisfiedByCrowd / demand;
+            usage1 += demandSatisfiedByCrowd / capacity;
+//            objForEachScenario[i] = cgSolver.getObjectiveValue() + instance.getUnservedPenalty() * scenarioEvaluation.get(i).getDemandTotal();
+//            avg += objForEachScenario[i];
+        }
+        util1 = util1 / scenarioEvaluation.size();
+        usage1 = usage1 / scenarioEvaluation.size();
+        util2 = totaldemandSatisfiedByCrowd / totalDemand;
+        usage2 = totaldemandSatisfiedByCrowd / totalcapacity;
+
+        String s = "";
+        s += util1 + " " + usage1 + " " + util2 + " " + usage2;
+
+        return s;
     }
 
 
@@ -909,7 +1004,7 @@ public class Util {
         }
         avg = avg / scenarioEvaluation.size();
         avg = solution.getFirstStageObj() + avg;
-        String s="";
+        String s = "";
 
         return s;
     }

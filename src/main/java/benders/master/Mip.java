@@ -82,7 +82,12 @@ public class Mip {
                         System.out.println("xi_"+xi+" valuet: "+valuest[xi]+" valueq: "+valuesQ[xi]);
 
                     }
-                    this.CVaR+= mipData.cplex.getValue(mipData.varz);
+                    if(this.CVaR>10000){
+                        this.CVaR= mipData.cplex.getValue(mipData.varz);
+
+                    }else {
+                        this.CVaR+= mipData.cplex.getValue(mipData.varz);
+                    }
                     System.out.println(" valuez: "+mipData.cplex.getValue(mipData.varz));
                 }
 

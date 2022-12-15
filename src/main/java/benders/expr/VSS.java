@@ -20,7 +20,9 @@ import util.Constants;
 import util.GlobalVariable;
 import util.Util;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,10 +43,11 @@ import java.util.concurrent.Future;
  */
 public class VSS {
     Solution solution = null;
+    double vs = 0;
 
 
-    public double vs(Instance instance, List<Scenario> scenarios) throws XGBoostError, IOException, IloException {
-        double vs = 0;
+    public String vs(Instance instance, List<Scenario> scenarios) throws XGBoostError, IOException, IloException {
+//        double vs = 0;
         Set<Pair<Station, Worker>> pairSWSet = Util.getAvailableSWPair(instance.getStationCandidates(), instance.getWorkers(), instance.getTravelCostMatrix());
         Map<Pair<Station, Worker>, Set<Customer>> unavailableSWPMap = Util.getUnavailablePairSWPMap(pairSWSet, instance.getCustomers(), instance.getTravelCostMatrix());
         GlobalVariable.columns = Util.generateJob(instance.getCustomers(), pairSWSet, unavailableSWPMap, instance, 0);
@@ -82,6 +85,8 @@ public class VSS {
         mip.solve();
         runTime = System.currentTimeMillis() - runTime;
 
+        int stationNum = 0;
+        double capacity = 0;
         if (mip.isFeasible()) {
 
             System.out.println("Objective: " + mip.getObjectiveValue());
@@ -94,14 +99,22 @@ public class VSS {
             System.out.println("firstplussecond: " + (mip.mipData.firstStageObj + mip.mipData.secondStageObj));
             System.out.println("expectedObj: " + mip.mipData.expectedObj);
             System.out.println("CVaR: " + mip.mipData.CVaR);
-            vs = mip.mipData.firstStageObj + mip.mipData.secondStageObj;
-            solution = mip.mipData.solution;
+            vs = mip.getFirstStageObj() + mip.getSecondStageObj();
+            List<Station> stations = mip.getSolution();
+            stationNum = stations.size();
+            solution = new Solution(stations, instance.getStationCandidates().size());
+            for (Station station : stations) {
+                capacity += station.getCapacity();
+            }
+
 
         } else {
             System.out.println("MIP infeasible!");
         }
-
-        return vs;
+        String evaluate = Util.evaluateSensitivity(instance, solution, scenarios);
+        double gap = (mip.getObjectiveValue() - mip.getLowerBound()) / mip.getObjectiveValue() * 100;
+        String s = stationNum + " " + capacity + " " + evaluate + " " + mip.getFirstStageObj() + " " + mip.getSecondStageObj() + " " + vs + " " + runTime + " " + gap + " ";
+        return s;
     }
 
     public double vSingleScenario(Instance instance, Scenario scenario) throws IloException, XGBoostError, IOException {
@@ -198,40 +211,65 @@ public class VSS {
         GlobalVariable.isReadMatrix = true;
 
 
-        Instance instance = Reader.readInstance(file, 50, 0, 10, 20, 40, 1);
+        Instance instance = Reader.readInstance(file, 50, 0, 5, 10, 20, 0.5);
 
         JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
-        List<Scenario> scenarios = Util.generateScenarios(instance, 0.5, 0.5, 50, randomGenerator);
-        instance.setMultipleCut(true);
-        GlobalVariable.isDemandTricky=true;
-        double vs = vss.vs(instance, scenarios);
+        for (int i = 0; i <= 5; i++) {
+            List<Scenario> scenarios = Util.generateScenarios(instance, i*0.25, i*0.25, 50, randomGenerator);
+            instance.setMultipleCut(true);
+            GlobalVariable.isDemandTricky = true;
+            String vs = vss.vs(instance, scenarios);
 
 
+            Scenario scenario = vss.getDeterminantScenario(instance);
+            double vDET0 = vss.vSingleScenario(instance, scenario);
+            double vDET = Util.evaluate(instance, vss.solution, scenarios);
+            double vDET2 = 0;
+            double vPI = 0;
+            double vMax = -Double.MAX_VALUE;
+            double vMin = Double.MAX_VALUE;
 
-        Scenario scenario = vss.getDeterminantScenario(instance);
-        double vDET0 = vss.vSingleScenario(instance, scenario);
-        double vDET =Util.evaluate(instance, vss.solution, scenarios);
-        double vDET2 =0;
-        for(int xi=0;xi<scenarios.size();xi++){
-            Scenario scenario2=scenarios.get(xi);
-            double pro=scenario2.getProbability();
-            scenario2.setIndex(0);
-            scenario2.setProbability(1);
-            double vDET02= vss.vSingleScenario(instance, scenario2);
-            scenario2.setIndex(xi);
-            scenario2.setProbability(pro);
-            vDET2+= Util.evaluate(instance, vss.solution, scenarios);
+            for (int xi = 0; xi < scenarios.size(); xi++) {
+                Scenario scenario2 = scenarios.get(xi);
+                double pro = scenario2.getProbability();
+                scenario2.setIndex(0);
+                scenario2.setProbability(1);
+                vPI += vss.vSingleScenario(instance, scenario2);
+                scenario2.setIndex(xi);
+                scenario2.setProbability(pro);
+                double vd = Util.evaluate(instance, vss.solution, scenarios);
+                if (vMax < vd) {
+                    vMax = vd;
+                }
+                if (vMin > vd) {
+                    vMin = vd;
+                }
+                vDET2 += vd;
+            }
+            vDET2 /= scenarios.size();
+            vPI /= scenarios.size();
+            System.out.println("vs: " + vs);
+            System.out.println("vPI: " + vPI);
+            System.out.println("vDET: " + vDET);
+            System.out.println("vDET2: " + vDET);
+            System.out.println("vMax: " + vMax);
+            System.out.println("vMin: " + vMin);
+            double gap = (vDET - vss.vs) / vDET * 100;
+            double gap2 = (vDET2 - vss.vs) / vDET2 * 100;
+            double gap4 = (vMax - vss.vs) / vMax * 100;
+            double gap5 = (vMin - vss.vs) / vMin * 100;
+            double gap3 = (vss.vs - vPI) / vss.vs * 100;
+            System.out.println("relative gap: " + gap);
+            System.out.println("relative gap2: " + gap2);
+            System.out.println("relative gap3: " + gap3);
+
+            String s = vPI + " " + gap3 + " " + vDET + " " + gap + " " + vDET2 + " " + gap2 + " " + vMax + " " + gap4 + " " + vMin + " " + gap5 + " ";
+            s += vs;
+            BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/performanceRiskAdverse.txt", true));
+            bf.write(s);
+            bf.flush();
         }
-        vDET2/=scenarios.size();
-        System.out.println("vs: " + vs);
-        System.out.println("vDET: " + vDET);
-        System.out.println("vDET2: " + vDET);
-        double gap = (vDET - vs) / vDET * 100;
-        double gap2 = (vDET2 - vs) / vDET2 * 100;
-        System.out.println("relative gap: " + gap);
-        System.out.println("relative gap2: " + gap2);
 
-//        String=
     }
 
 }

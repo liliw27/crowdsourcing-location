@@ -108,8 +108,8 @@ public class OptimalityCutGenerator extends CutGenerator {
                 System.out.println("add one CVaR cut!! total number of cuts" + optimalityCuts.size());
             }
             //optimality cut
-//            if (q > valueQ + Constants.cutGenerationPrecision) {
-            if ((q - valueQ) / q > Constants.cutGenerationPrecision) {
+            if (q > valueQ + Constants.cutGenerationPrecision) {
+//            if ((q - valueQ) / q > Constants.cutGenerationPrecision) {
                 System.out.println("q: " + q + "valueQ: " + valueQ);
                 IloLinearNumExpr expr = mipData.cplex.linearNumExpr();
                 expr.addTerm(-1, mipData.varQ);
