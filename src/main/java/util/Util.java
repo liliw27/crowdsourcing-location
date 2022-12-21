@@ -714,16 +714,33 @@ public class Util {
 
         GammaDistribution[] gammacustomers = new GammaDistribution[instance.getCustomers().size()];
         GammaDistribution[] gammaworkers = new GammaDistribution[instance.getWorkers().size()];
-        for (Customer customer : instance.getCustomers()) {
-            double shape = 1 / (coeC * coeC);
-            double scale = coeC * coeC * customer.getDemandExpected();
-            gammacustomers[customer.getIndex()] = new GammaDistribution(randomGenerator, shape, scale);
+        if (coeC == 0) {
+            coeW = 0.5;
+            for (Worker worker : instance.getWorkers()) {
+                double shape = 1 / (coeW * coeW);
+                double scale = coeW * coeW * worker.getCapacity();
+                gammaworkers[worker.getIndex()] = new GammaDistribution(randomGenerator, shape, scale);
+            }
+        } else if (coeC == 1) {
+            coeC = 0.5;
+            for (Customer customer : instance.getCustomers()) {
+                double shape = 1 / (coeC * coeC);
+                double scale = coeC * coeC * customer.getDemandExpected();
+                gammacustomers[customer.getIndex()] = new GammaDistribution(randomGenerator, shape, scale);
+            }
+        } else {
+            for (Customer customer : instance.getCustomers()) {
+                double shape = 1 / (coeC * coeC);
+                double scale = coeC * coeC * customer.getDemandExpected();
+                gammacustomers[customer.getIndex()] = new GammaDistribution(randomGenerator, shape, scale);
+            }
+            for (Worker worker : instance.getWorkers()) {
+                double shape = 1 / (coeW * coeW);
+                double scale = coeW * coeW * worker.getCapacity();
+                gammaworkers[worker.getIndex()] = new GammaDistribution(randomGenerator, shape, scale);
+            }
         }
-        for (Worker worker : instance.getWorkers()) {
-            double shape = 1 / (coeW * coeW);
-            double scale = coeW * coeW * worker.getCapacity();
-            gammaworkers[worker.getIndex()] = new GammaDistribution(randomGenerator, shape, scale);
-        }
+
 
         double prob = 1.0 / N;
         for (int i = 0; i < N; i++) {
@@ -736,7 +753,7 @@ public class Util {
             availableWorkers.addAll(instance.getWorkers());
             int totalD = 0;
             for (int j = 0; j < instance.getCustomers().size(); j++) {
-                if (coeC > 0.01) {
+                if (coeC > 0 + Constants.EPSILON) {
                     customerDemand[j] = (int) gammacustomers[j].sample();
                 } else {
                     customerDemand[j] = instance.getCustomers().get(j).getDemandExpected();
@@ -744,7 +761,7 @@ public class Util {
                 totalD += customerDemand[j];
             }
             for (int j = 0; j < instance.getWorkers().size(); j++) {
-                if (coeC < 0.99) {
+                if (coeW < 1 - Constants.EPSILON) {
                     workerCapacity[j] = (int) gammaworkers[j].sample();
 
                 } else {
@@ -814,6 +831,7 @@ public class Util {
         }
         avg = avg / scenarioEvaluation.size();
         avg = solution.getFirstStageObj() + avg;
+        executor.shutdownNow();
         return avg;
     }
 
@@ -948,13 +966,17 @@ public class Util {
 
         for (int i = 0; i < cgSolvers.size(); i++) {
             LocationAssignmentCGSolver cgSolver = cgSolvers.get(i);
-            objForEachScenario[i] = cgSolver.getObjectiveValue() + instance.getUnservedPenalty() * scenarioEvaluation.get(i).getDemandTotal();
+            objForEachScenario[i] = cgSolver.getObjectiveValue() ;
+//            objForEachScenario[i] = cgSolver.getObjectiveValue() + instance.getUnservedPenalty() * scenarioEvaluation.get(i).getDemandTotal();
 
         }
 
         return objForEachScenario;
     }
-
+    public static double percentile(List<Double> latencies, double percentile) {
+        int index = (int) Math.ceil(percentile / 100.0 * latencies.size());
+        return latencies.get(index-1);
+    }
     public static String sensitivityAnalysis(Instance instance, Solution solution, List<Scenario> scenarioEvaluation) throws XGBoostError, IOException, IloException {
         instance.setScenarios(scenarioEvaluation);
         for (AssignmentColumn_true assignmentColumn_true : GlobalVariable.columns) {

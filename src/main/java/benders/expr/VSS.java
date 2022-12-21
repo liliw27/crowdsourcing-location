@@ -114,6 +114,7 @@ public class VSS {
         String evaluate = Util.evaluateSensitivity(instance, solution, scenarios);
         double gap = (mip.getObjectiveValue() - mip.getLowerBound()) / mip.getObjectiveValue() * 100;
         String s = stationNum + " " + capacity + " " + evaluate + " " + mip.getFirstStageObj() + " " + mip.getSecondStageObj() + " " + vs + " " + runTime + " " + gap + " ";
+        mip.mipData.cplex.end();
         return s;
     }
 
@@ -165,14 +166,16 @@ public class VSS {
             System.out.println("firstplussecond: " + (mip.mipData.firstStageObj + mip.mipData.secondStageObj));
             System.out.println("expectedObj: " + mip.mipData.expectedObj);
             System.out.println("CVaR: " + mip.mipData.CVaR);
-            vdet = mip.mipData.firstStageObj + mip.mipData.secondStageObj;
-            solution = mip.mipData.solution;
+//            vdet = mip.mipData.firstStageObj + mip.mipData.secondStageObj;
+//            solution = mip.mipData.solution;
+            vdet = mip.getFirstStageObj() + mip.getSecondStageObj();
+            solution = new Solution(mip.getSolution(), instance.getStationCandidates().size());
 
         } else {
             System.out.println("MIP infeasible!");
         }
 
-
+        mip.mipData.cplex.end();
         return vdet;
     }
 
@@ -211,11 +214,11 @@ public class VSS {
         GlobalVariable.isReadMatrix = true;
 
 
-        Instance instance = Reader.readInstance(file, 50, 0, 5, 10, 20, 0.5);
+        Instance instance = Reader.readInstance(file, 50, 0, 10, 20, 40, 0.5);
 
         JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
-        for (int i = 0; i <= 5; i++) {
-            List<Scenario> scenarios = Util.generateScenarios(instance, i*0.25, i*0.25, 50, randomGenerator);
+        for (int i = 0; i <= 4; i++) {
+            List<Scenario> scenarios = Util.generateScenarios(instance, i * 0.25, i * 0.25, 50, randomGenerator);
             instance.setMultipleCut(true);
             GlobalVariable.isDemandTricky = true;
             String vs = vss.vs(instance, scenarios);
@@ -264,8 +267,8 @@ public class VSS {
             System.out.println("relative gap3: " + gap3);
 
             String s = vPI + " " + gap3 + " " + vDET + " " + gap + " " + vDET2 + " " + gap2 + " " + vMax + " " + gap4 + " " + vMin + " " + gap5 + " ";
-            s += vs;
-            BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/performanceRiskAdverse.txt", true));
+            s += vs+"\n";
+            BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/vss.txt", true));
             bf.write(s);
             bf.flush();
         }

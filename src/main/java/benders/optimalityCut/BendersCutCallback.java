@@ -16,9 +16,11 @@ import model.Station;
 import org.jorlib.frameworks.columnGeneration.util.MathProgrammingUtil;
 import util.Constants;
 import util.GlobalVariable;
+import util.Util;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -69,7 +71,7 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
             }
         }
         System.out.println(">>>>>>>>>>>>iter<<<<<<<<<<<<" + iter);
-//        System.out.println("capacity: " + Arrays.toString(capacity));
+        System.out.println("capacity: " + Arrays.toString(capacity));
 //        if(GlobalVariable.obj>this.getObjValue()){
 //            GlobalVariable.obj=this.getObjValue();
 //        }
@@ -98,9 +100,9 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
         for (int i = 0; i < cgSolvers.size(); i++) {
             LocationAssignmentCGSolver cgSolver = cgSolvers.get(i);
             objForEachScenario[i] = cgSolver.getObjectiveValue() + dataModel.getUnservedPenalty() * dataModel.getScenarios().get(i).getDemandTotal();
+//            objForEachScenario[i] = cgSolver.getObjectiveValue() ;
             dualCostsMaps[i] = cgSolver.getDualCostsMap();
         }
-
 
         double firstStageObj = 0;
         for (int s = 0; s < dataModel.getStationCandidates().size(); s++) {
@@ -114,8 +116,14 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
         double q = 0;
         double valueZ = 0;
         double cvar = 0;
+        double valuet=0;
         if (dataModel.isCVaR()) {
-            valueZ = this.getValue(mipData.varz);
+            List<Double> objForEachScenarioList=new ArrayList<>();
+            for(Scenario scenario : dataModel.getScenarios()){
+                objForEachScenarioList.add(objForEachScenario[scenario.getIndex()]);
+            }
+            Collections.sort(objForEachScenarioList);
+            valueZ = Util.percentile(objForEachScenarioList,GlobalVariable.alpha*100);
             for (Scenario scenario : dataModel.getScenarios()) {
                 q += objForEachScenario[scenario.getIndex()] * scenario.getProbability();
                 cvar += Math.max(0, objForEachScenario[scenario.getIndex()] - valueZ) * scenario.getProbability()/(1 - GlobalVariable.alpha);
@@ -128,6 +136,7 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
             }
             secondStageObj = q;
         }
+
         double upperBound = firstStageObj + secondStageObj;
         if (upperBound < mipData.firstPlusSecondObj) {
             mipData.firstPlusSecondObj = upperBound;
@@ -148,23 +157,26 @@ public class BendersCutCallback extends IloCplex.LazyConstraintCallback {
             valuesQ = this.getValues(mipData.varsQ);
         } else {
             valueQ = this.getValue(mipData.varQ);
+//            valuet = this.getValue(mipData.vart);
         }
         System.out.println("###########################upperbound: " + upperBound + "; lowerbound: " + this.getObjValue() + "; bestObj: " + this.getBestObjValue() + "#######################");
 //        System.out.println("the number of nodes processed so far in the active branch-and-cut search: " + this.getNnodes());
 //        System.out.println("the number of nodes remaining to be processed: " + this.getNremainingNodes());
 //        System.out.println("totalpenalty: " + dataModel.getTotalPenalty());
-
+        if(upperBound-Constants.EPSILON<=this.getObjValue()){
+            return;
+        }
 
         if (System.currentTimeMillis() - GlobalVariable.timeStart > GlobalVariable.timeLimit) {
             System.out.println("TIME OUT!!!!!");
             return;
         }
 
-
-        OptimalityCutGenerator cutGen = new OptimalityCutGenerator(dataModel, mipData, valuesQ, valueQ, valueZ, optimalityCuts, q);
+//        valueZ=this.getValue(mipData.varz);
+        OptimalityCutGenerator cutGen = new OptimalityCutGenerator(dataModel, mipData, valuesQ, valueQ, valueZ,valuet, optimalityCuts, q);
         List<IloRange> optimalityCuts = cutGen.generateInqualities();
         for (IloRange optimalityCut : optimalityCuts) {
-            this.addLocal(optimalityCut);
+            this.add(optimalityCut);
         }
 
         long time = System.currentTimeMillis() - currentT;

@@ -230,7 +230,7 @@ public class PerformanceRiskNeutral {
         }
 
         String s = mip.getObjectiveValue() + " " + runTime + " " + mip.isOptimal() + " " + mip.getLowerBound() + " " + mip.getNrOfNodes() + " " + mip.mipData.optimalityCuts.size() + " " + mip.mipData.solution.getStations().size() + " " + mip.mipData.firstStageObj + " " + mip.mipData.secondStageObj + " " + (mip.mipData.firstStageObj + mip.mipData.secondStageObj) + " " + mip.mipData.expectedObj + " " + mip.mipData.CVaR + "\n";
-//        double evaluate[] = Util.evaluateDetail(instance, mip.mipData.solution, scenarios);
+
 //
 //        DescriptiveStatistics stats = new DescriptiveStatistics();
 //        for (int xi = 0; xi < scenarios.size(); xi++) {
@@ -247,6 +247,27 @@ public class PerformanceRiskNeutral {
 //        double cvar = t / (1 - alpha) + z;
 //        double expe = stats.getMean();
 //        double second = lambda * cvar + (1 - lambda) * expe;
+        if(instance.isMultipleCut()){
+            double evaluate[] = Util.evaluateDetail(instance, new Solution(mip.getSolution(),instance.getStationCandidates().size()), scenarios);
+            double q[]=mip.mipData.cplex.getValues(mip.mipData.varsQ);
+            double eavg=0;
+            double qavg=0;
+            for(int i=0;i<scenarios.size();i++){
+                System.out.println("q: "+q[i]+" evaluate: "+evaluate[i]);
+                eavg+=evaluate[i];
+                qavg+=q[i];
+            }
+            eavg/=scenarios.size();
+            qavg/=scenarios.size();
+            System.out.println("qavg: "+qavg+" eavg: "+eavg);
+        }else {
+            double evaluate = Util.evaluate(instance, new Solution(mip.getSolution(),instance.getStationCandidates().size()), scenarios);
+            double q=mip.mipData.cplex.getObjValue();
+
+            System.out.println("q: "+q+" evaluate: "+evaluate);
+
+        }
+
         s += mip.getObjectiveValue() + " " + runTime + " " + mip.isOptimal() + " " + mip.getLowerBound() + " " + mip.getNrOfNodes() + " " + mip.mipData.optimalityCuts.size() + " " + mip.getSolution().size() + " " + mip.getFirstStageObj() + " " + mip.getSecondStageObj() + " " + (mip.getFirstStageObj() + mip.getSecondStageObj()) + " " + mip.getExpectedObj() + " " + mip.getCVaR() + "\n";
         if (GlobalVariable.ENUMERATE) {
             GlobalVariable.columns.clear();
@@ -265,7 +286,7 @@ public class PerformanceRiskNeutral {
         JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
 
         bf.write("coeC lambda alpha Runtime Isoptimal Bound Nodes Cuts firstStage secondStage firstplussecond expectedObj CVaR\n");
-        GlobalVariable.isDemandTricky = false;
+        GlobalVariable.isDemandTricky = true;
         instance.setMultipleCut(true);
         for (int k = 0; k <= 2; k++) {
             double coeC = 0.25 + k * 0.25;
@@ -273,8 +294,8 @@ public class PerformanceRiskNeutral {
             List<Scenario> scenarios = Util.generateScenarios(instance, coeC, coeW, 50, randomGenerator);
             for (int j = 0; j <= 2; j++) {
                 double alpha = 0.7 + j * 0.1;
-            for (int i = 0; i <= 4; i++) {
-                double lambda = i * 0.25;
+                for (int i = 1; i <= 4; i++) {
+                    double lambda = i * 0.25;
                     String s = coeC + " " + lambda + " " + alpha + " " + performanceRiskNeutral.saaCVaR(instance, scenarios, lambda, alpha);
                     bf.write(s);
                     bf.flush();

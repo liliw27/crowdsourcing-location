@@ -89,6 +89,9 @@ public class Mip {
                         this.CVaR+= mipData.cplex.getValue(mipData.varz);
                     }
                     System.out.println(" valuez: "+mipData.cplex.getValue(mipData.varz));
+                    this.secondStageObj = GlobalVariable.lambda * this.CVaR + (1 - GlobalVariable.lambda) * this.expectedObj;
+                }else {
+                    this.secondStageObj=this.expectedObj;
                 }
 
             } else {
@@ -97,10 +100,12 @@ public class Mip {
                     double vartValue=mipData.cplex.getValue(mipData.vart);
                     double varzValue=mipData.cplex.getValue(mipData.varz);
                     this.CVaR = vartValue / (1 - GlobalVariable.alpha) + varzValue;
+                    this.secondStageObj = GlobalVariable.lambda * this.CVaR + (1 - GlobalVariable.lambda) * this.expectedObj;
+                }else {
+                    this.secondStageObj = this.expectedObj;
                 }
             }
 
-            this.secondStageObj = GlobalVariable.lambda * this.CVaR + (1 - GlobalVariable.lambda) * this.expectedObj;
             this.firstStageObj = this.objectiveValue - secondStageObj;
         } else if (mipData.cplex.getStatus() == IloCplex.Status.Infeasible) {
 //			throw new RuntimeException("Mip infeasible");
