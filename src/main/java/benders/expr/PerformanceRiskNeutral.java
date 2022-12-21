@@ -280,48 +280,48 @@ public class PerformanceRiskNeutral {
 //        File file = new File("dataset/instance/instance");
         File file = new File("dataset/instance/S30_W120_P40new.txt");
         GlobalVariable.isReadMatrix = true;
-        BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/performanceRiskAdverse.txt", true));
+//        BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/performanceRiskAdverse.txt", true));
+//
+//        Instance instance = Reader.readInstance(file, 1, 0, 5, 10, 20, 0.5);
+//        JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
+//
+//        bf.write("coeC lambda alpha Runtime Isoptimal Bound Nodes Cuts firstStage secondStage firstplussecond expectedObj CVaR\n");
+//        GlobalVariable.isDemandTricky = true;
+//        instance.setMultipleCut(true);
+//        for (int k = 0; k <= 2; k++) {
+//            double coeC = 0.25 + k * 0.25;
+//            double coeW = 0.25 + k * 0.25;
+//            List<Scenario> scenarios = Util.generateScenarios(instance, coeC, coeW, 50, randomGenerator);
+//            for (int j = 0; j <= 2; j++) {
+//                double alpha = 0.7 + j * 0.1;
+//                for (int i = 1; i <= 4; i++) {
+//                    double lambda = i * 0.25;
+//                    String s = coeC + " " + lambda + " " + alpha + " " + performanceRiskNeutral.saaCVaR(instance, scenarios, lambda, alpha);
+//                    bf.write(s);
+//                    bf.flush();
+//                }
+//            }
+//
+//        }
 
-        Instance instance = Reader.readInstance(file, 1, 0, 5, 10, 20, 0.5);
-        JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
 
-        bf.write("coeC lambda alpha Runtime Isoptimal Bound Nodes Cuts firstStage secondStage firstplussecond expectedObj CVaR\n");
-        GlobalVariable.isDemandTricky = true;
-        instance.setMultipleCut(true);
-        for (int k = 0; k <= 2; k++) {
-            double coeC = 0.25 + k * 0.25;
-            double coeW = 0.25 + k * 0.25;
-            List<Scenario> scenarios = Util.generateScenarios(instance, coeC, coeW, 50, randomGenerator);
-            for (int j = 0; j <= 2; j++) {
-                double alpha = 0.7 + j * 0.1;
-                for (int i = 1; i <= 4; i++) {
-                    double lambda = i * 0.25;
-                    String s = coeC + " " + lambda + " " + alpha + " " + performanceRiskNeutral.saaCVaR(instance, scenarios, lambda, alpha);
-                    bf.write(s);
-                    bf.flush();
-                }
+        BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/performanceRiskNeutral.txt", true));
+        bf.write("Customer Sample Objective Runtime Isoptimal Bound Nodes Cuts firstStage secondStage firstplussecond expectedObj CVaR\n");
+        bf.write("method1: cplex RL\n");
+        bf.flush();
+        for (int i = 1; i <= 4; i++) {
+            Instance instance = Reader.readInstance(file, 1, 0, i * 5, i * 10, i * 20, 1);
+            JDKRandomGenerator randomGenerator = new JDKRandomGenerator(0);
+            for (int j = 1; j <= 4; j++) {
+                List<Scenario> scenarios = Util.generateScenarios(instance, 0.5, 0.5, j * 25, randomGenerator);
+                //method 1
+                String s = i * 10 + " " + j * 25 + " " + performanceRiskNeutral.exactLR(instance, scenarios);
+                bf.write(s);
+                bf.flush();
             }
 
         }
 
-
-//        BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/performanceRiskNeutral.txt", true));
-//        bf.write("Customer Sample Objective Runtime Isoptimal Bound Nodes Cuts firstStage secondStage firstplussecond expectedObj CVaR\n");
-//        bf.write("method1: cplex RL\n");
-//        bf.flush();
-//        for (int i = 1; i <= 4; i++) {
-//            Instance instance = Reader.readInstance(file, 1, 0, i * 5, i * 10, i * 20, 1);
-//            JDKRandomGenerator randomGenerator = new JDKRandomGenerator(0);
-//            for (int j = 1; j <= 4; j++) {
-//                List<Scenario> scenarios = Util.generateScenarios(instance, 0.5, 0.5, j * 25, randomGenerator);
-//                //method 1
-//                String s = i * 10 + " " + j * 25 + " " + performanceRiskNeutral.exactLR(instance, scenarios);
-//                bf.write(s);
-//                bf.flush();
-//            }
-//
-//        }
-//
 //        bf.write("method2: enumerate\n");
 //        bf.flush();
 //        for (int i = 1; i <= 4; i++) {
@@ -340,39 +340,39 @@ public class PerformanceRiskNeutral {
 //            }
 //
 //        }
-//        bf.write("method3: enumerate memory\n");
-//        bf.flush();
-//        for (int i = 1; i <= 4; i++) {
-//            Instance instance = Reader.readInstance(file, 1, 0, i * 5, i * 10, i * 20, 1);
-//            JDKRandomGenerator randomGenerator = new JDKRandomGenerator(0);
-//            for (int j = 1; j <= 4; j++) {
-//                List<Scenario> scenarios = Util.generateScenarios(instance, 0.5, 0.5, j * 25, randomGenerator);
-//                //method 3
-//                GlobalVariable.ENUMERATE = true;
-//                GlobalVariable.isDemandRecorded = true;
-//                String s = i * 10 + " " + j * 25 + " " + performanceRiskNeutral.saa(instance, scenarios);
-//                bf.write(s);
-//                bf.flush();
-//            }
-//
-//        }
-//        bf.write("method4: enumerate memory multiCut\n");
-//        bf.flush();
-//        for (int i = 1; i <= 4; i++) {
-//            Instance instance = Reader.readInstance(file, 1, 0, i * 5, i * 10, i * 20, 1);
-//            JDKRandomGenerator randomGenerator = new JDKRandomGenerator(0);
-//            for (int j = 1; j <= 4; j++) {
-//                List<Scenario> scenarios = Util.generateScenarios(instance, 0.5, 0.5, j * 25, randomGenerator);
-//                //method 4
-//                instance.setMultipleCut(true);
-//                String s = i * 10 + " " + j * 25 + " " + performanceRiskNeutral.saa(instance, scenarios);
-//                bf.write(s);
-//                bf.flush();
-//            }
-//
-//        }
-//
-//        bf.close();
+        bf.write("method3: enumerate memory\n");
+        bf.flush();
+        for (int i = 1; i <= 4; i++) {
+            Instance instance = Reader.readInstance(file, 1, 0, i * 5, i * 10, i * 20, 1);
+            JDKRandomGenerator randomGenerator = new JDKRandomGenerator(0);
+            for (int j = 1; j <= 4; j++) {
+                List<Scenario> scenarios = Util.generateScenarios(instance, 0.5, 0.5, j * 25, randomGenerator);
+                //method 3
+                GlobalVariable.ENUMERATE = true;
+                GlobalVariable.isDemandRecorded = true;
+                String s = i * 10 + " " + j * 25 + " " + performanceRiskNeutral.saa(instance, scenarios);
+                bf.write(s);
+                bf.flush();
+            }
+
+        }
+        bf.write("method4: enumerate memory multiCut\n");
+        bf.flush();
+        for (int i = 1; i <= 4; i++) {
+            Instance instance = Reader.readInstance(file, 1, 0, i * 5, i * 10, i * 20, 1);
+            JDKRandomGenerator randomGenerator = new JDKRandomGenerator(0);
+            for (int j = 1; j <= 4; j++) {
+                List<Scenario> scenarios = Util.generateScenarios(instance, 0.5, 0.5, j * 25, randomGenerator);
+                //method 4
+                instance.setMultipleCut(true);
+                String s = i * 10 + " " + j * 25 + " " + performanceRiskNeutral.saa(instance, scenarios);
+                bf.write(s);
+                bf.flush();
+            }
+
+        }
+
+        bf.close();
 
     }
 
