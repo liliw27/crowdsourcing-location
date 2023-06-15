@@ -283,13 +283,13 @@ public class PerformanceRiskNeutral {
         GlobalVariable.isReadMatrix = true;
 //        BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/performanceRiskAdverse.txt", true));
 //
-//        Instance instance = Reader.readInstance(file, 1, 0, 5, 10, 20, 0.5);
+//        Instance instance = Reader.readInstance(file, 1, 0, 10, 20, 40, 0.5);
 //        JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
 //
 //        bf.write("coeC lambda alpha Runtime Isoptimal Bound Nodes Cuts firstStage secondStage firstplussecond expectedObj CVaR\n");
 //        GlobalVariable.isDemandTricky = true;
-//        instance.setMultipleCut(true);
-//        for (int k = 0; k <= 2; k++) {
+//        instance.setMultipleCut(false);
+//        for (int k = 1; k <= 2; k++) {
 //            double coeC = 0.25 + k * 0.25;
 //            double coeW = 0.25 + k * 0.25;
 //            List<Scenario> scenarios = Util.generateScenarios(instance, coeC, coeW, 50, randomGenerator);
@@ -310,18 +310,20 @@ public class PerformanceRiskNeutral {
         bf.write("Customer Sample Objective Runtime Isoptimal Bound Nodes Cuts firstStage secondStage firstplussecond expectedObj CVaR\n");
         bf.write("method1: cplex RL\n");
         bf.flush();
-        for (int i = 1; i <= 4; i++) {
-            Instance instance = Reader.readInstance(file, 1, 0, i * 5, i * 10, i * 20, 1);
-            JDKRandomGenerator randomGenerator = new JDKRandomGenerator(0);
-            for (int j = 1; j <= 4; j++) {
-                List<Scenario> scenarios = Util.generateScenarios(instance, 0.5, 0.5, j * 25, randomGenerator);
-                //method 1
-                String s = i * 10 + " " + j * 25 + " " + performanceRiskNeutral.exactLR(instance, scenarios);
-                bf.write(s);
-                bf.flush();
-            }
+                GlobalVariable.isDemandTricky = true;
 
-        }
+//        for (int i = 1; i <= 4; i++) {
+//            Instance instance = Reader.readInstance(file, 1, 0, i * 5, i * 10, i * 20, 1);
+//            JDKRandomGenerator randomGenerator = new JDKRandomGenerator(0);
+//            for (int j = 1; j <= 4; j++) {
+//                List<Scenario> scenarios = Util.generateScenarios(instance, 0.5, 0.5, j * 25, randomGenerator);
+//                //method 1
+//                String s = i * 10 + " " + j * 25 + " " + performanceRiskNeutral.exactLR(instance, scenarios);
+//                bf.write(s);
+//                bf.flush();
+//            }
+//
+//        }
 
 //        bf.write("method2: enumerate\n");
 //        bf.flush();

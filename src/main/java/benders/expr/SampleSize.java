@@ -72,7 +72,6 @@ public class SampleSize {
     double coeW = 0.5;
     JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
 
-
     public List<Scenario>[] getScenarioBatches(Instance instance, int N) {
         List<Scenario>[] scenarioBatches = new ArrayList[M];
 
@@ -104,9 +103,11 @@ public class SampleSize {
                 int totalD = 0;
                 for (int j = 0; j < instance.getCustomers().size(); j++) {
                     customerDemand[j] = (int) gammacustomers[j].sample();
+//                    customerDemand[j] = instance.getCustomers().get(j).getDemandExpected();
                     totalD += customerDemand[j];
                 }
                 for (int j = 0; j < instance.getWorkers().size(); j++) {
+//                    workerCapacity[j] = instance.getWorkers().get(j).getCapacity();
                     workerCapacity[j] = (int) gammaworkers[j].sample();
                 }
 
@@ -130,39 +131,41 @@ public class SampleSize {
         List<Scenario> scenarioEvaluation = new ArrayList<>();
         GammaDistribution[] gammacustomers = new GammaDistribution[instance.getCustomers().size()];
         GammaDistribution[] gammaworkers = new GammaDistribution[instance.getWorkers().size()];
-        for (Customer customer : instance.getCustomers()) {
+       for (Customer customer : instance.getCustomers()) {
             double shape = 1 / (coeC * coeC);
             double scale = coeC * coeC * customer.getDemandExpected();
             gammacustomers[customer.getIndex()] = new GammaDistribution(randomGenerator, shape, scale);
         }
-        for (Worker worker : instance.getWorkers()) {
-            double shape = 1 / (coeW * coeW);
-            double scale = coeW * coeW * worker.getCapacity();
-            gammaworkers[worker.getIndex()] = new GammaDistribution(randomGenerator, shape, scale);
-        }
-        for (int m = 0; m < 10000; m++) {
+                for (Worker worker : instance.getWorkers()) {
+                    double shape = 1 / (coeW * coeW);
+                    double scale = coeW * coeW * worker.getCapacity();
+                    gammaworkers[worker.getIndex()] = new GammaDistribution(randomGenerator, shape, scale);
+                }
+                for (int m = 0; m < 10000; m++) {
 
-            double prob = 1.0 / 10000;
+                    double prob = 1.0 / 10000;
 
-            List<Worker> availableWorkers = new ArrayList<>();
-            Scenario scenario = new Scenario();
-            int[] isWorkerAvailable = new int[instance.getWorkers().size()];
-            int[] customerDemand = new int[instance.getCustomers().size()];
-            int[] workerCapacity = new int[instance.getWorkers().size()];
-            Arrays.fill(isWorkerAvailable, 1);
-            availableWorkers.addAll(instance.getWorkers());
-            int maxValue = Integer.MIN_VALUE;
-            int totalD = 0;
-            for (int j = 0; j < instance.getCustomers().size(); j++) {
+                    List<Worker> availableWorkers = new ArrayList<>();
+                    Scenario scenario = new Scenario();
+                    int[] isWorkerAvailable = new int[instance.getWorkers().size()];
+                    int[] customerDemand = new int[instance.getCustomers().size()];
+                    int[] workerCapacity = new int[instance.getWorkers().size()];
+                    Arrays.fill(isWorkerAvailable, 1);
+                    availableWorkers.addAll(instance.getWorkers());
+                    int maxValue = Integer.MIN_VALUE;
+                    int totalD = 0;
+                    for (int j = 0; j < instance.getCustomers().size(); j++) {
                 customerDemand[j] = (int) gammacustomers[j].sample();
-                totalD += customerDemand[j];
-            }
-            for (int j = 0; j < instance.getWorkers().size(); j++) {
-                workerCapacity[j] = (int) gammaworkers[j].sample();
-            }
+//                        customerDemand[j] =instance.getCustomers().get(j).getDemandExpected();
+                        totalD += customerDemand[j];
+                    }
+                    for (int j = 0; j < instance.getWorkers().size(); j++) {
+//                        workerCapacity[j] = (int) instance.getWorkers().get(j).getCapacity();
+                        workerCapacity[j] = (int) gammaworkers[j].sample();
+                    }
 
 
-            scenario.setIndex(m);
+                    scenario.setIndex(m);
             scenario.setIsWorkerAvailable(isWorkerAvailable);
             scenario.setCustomerDemand(customerDemand);
             scenario.setAvailableWorkers(availableWorkers);
@@ -243,7 +246,7 @@ public class SampleSize {
 
         }
         for (int i = 0; i < M; i++) {
-            System.out.println("mip.getObjectiveValue: " + lbForEachM[i] + "evaluate2: " + evaluate2[i]+ "evaluate: " + evaluate[i]);
+            System.out.println("mip.getObjectiveValue: " + lbForEachM[i] + "evaluate2: " + evaluate2[i] + "evaluate: " + evaluate[i]);
 
         }
         double avg = 0;
@@ -290,23 +293,30 @@ public class SampleSize {
     }
 
 
-    public Solution getEvaluatedSolution(Instance instance,Solution[]solutionsForLower) throws XGBoostError, IOException, IloException {
+    public Solution getEvaluatedSolution(Instance instance, Solution[] solutionsForLower, boolean is2) throws XGBoostError, IOException, IloException {
         Solution solutionBest = solutionsForLower[0];
         double bestObj = Double.MAX_VALUE;
         List<Scenario>[] scenarioBatchesEval = getScenarioBatches(instance, 2 * N);
         for (int i = 0; i < M; i++) {
 
-            getUpperBound(instance, solutionsForLower[i], scenarioBatchesEval[i],false);
-
-            if (bestObj > UB) {
-                bestObj = UB;
-                solutionBest = solutionsForLower[i];
+            getUpperBound(instance, solutionsForLower[i], scenarioBatchesEval[i], is2);
+            if (is2) {
+                if (bestObj > UB2) {
+                    bestObj = UB2;
+                    solutionBest = solutionsForLower[i];
+                }
+            } else {
+                if (bestObj > UB) {
+                    bestObj = UB;
+                    solutionBest = solutionsForLower[i];
+                }
             }
+
         }
         return solutionBest;
     }
 
-    public void getUpperBound(Instance instance, Solution solution, List<Scenario> scenarioEvaluation,boolean is2) throws XGBoostError, IOException, IloException {
+    public void getUpperBound(Instance instance, Solution solution, List<Scenario> scenarioEvaluation, boolean is2) throws XGBoostError, IOException, IloException {
         instance.setScenarios(scenarioEvaluation);
         ExecutorService executor = Executors.newFixedThreadPool(Constants.MAXTHREADS);
         List<Future<Void>> futures = new ArrayList<>(scenarioEvaluation.size());
@@ -353,18 +363,18 @@ public class SampleSize {
         std = std / (scenarioEvaluation.size() - 1);
         std = Math.sqrt(std);
         double zscore = 1.96;
-        if(is2){
+        if (is2) {
             UB2 = solution.getFirstStageObj() + avg;
             ub21 = UB2 - zscore * std;
             ub22 = UB2 + zscore * std;
-        }else {
+        } else {
             UB = solution.getFirstStageObj() + avg;
             ub1 = UB - zscore * std;
             ub2 = UB + zscore * std;
         }
     }
 
-    public double getGap(double ub2,double lb1) {
+    public double getGap(double ub2, double lb1) {
         double gap = (ub2 - lb1) / ub2 * 100;
         return gap;
     }
@@ -376,7 +386,9 @@ public class SampleSize {
         BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/sampleSize.txt", true));
         bf.write("Customer Sample LNB lb1 lb2 UB ub1 ub2 gap\n");
         GlobalVariable.isDemandTricky = true;
-        for (int i = 1; i <= 1; i++) {
+        sampleSize.coeC=0.75;
+        sampleSize.coeW=0.75;
+        for (int i = 1; i <= 2; i++) {
             Instance instance = Reader.readInstance(file, 50, 0, 5 * i, 10 * i, 20 * i, 1);
 
             for (int j = 1; j <= 4; j++) {
@@ -386,15 +398,15 @@ public class SampleSize {
                 GlobalVariable.isDemandRecorded = true;
                 sampleSize.getLowerBound(instance);
                 GlobalVariable.isDemandRecorded = false;
-                Solution solution = sampleSize.getEvaluatedSolution(instance, sampleSize.solutionsForLower);
-                Solution solution2 = sampleSize.getEvaluatedSolution(instance, sampleSize.solutionsForLower2);
+                Solution solution = sampleSize.getEvaluatedSolution(instance, sampleSize.solutionsForLower,false);
+                Solution solution2 = sampleSize.getEvaluatedSolution(instance, sampleSize.solutionsForLower2,true);
                 List<Scenario> scenarioEvaluation = sampleSize.getScenarioEvaluation(instance);
-                sampleSize.getUpperBound(instance, solution, scenarioEvaluation,false);
-                sampleSize.getUpperBound(instance, solution2, scenarioEvaluation,true);
+                sampleSize.getUpperBound(instance, solution, scenarioEvaluation, false);
+                sampleSize.getUpperBound(instance, solution2, scenarioEvaluation, true);
                 double gap = sampleSize.getGap(sampleSize.ub2, sampleSize.lb1);
                 double gap2 = sampleSize.getGap(sampleSize.ub22, sampleSize.lb21);
                 runtime = System.currentTimeMillis() - runtime;
-                String s = i * 10 + " " + j * 25 + " " + runtime + " " + sampleSize.LNM + " " + sampleSize.lb1 + " " + sampleSize.lb2 + " " + sampleSize.UB + " " + sampleSize.ub1 + " " + sampleSize.ub2 + " " + gap + " " + sampleSize.LNM2 + " " + sampleSize.lb21 + " " + sampleSize.lb22 + " " + sampleSize.UB2 + " " + sampleSize.ub21 + " " + sampleSize.ub22 + " " + gap2+ "\n";
+                String s = i * 10 + " " + sampleSize.N + " " + runtime + " " + sampleSize.LNM + " " + sampleSize.lb1 + " " + sampleSize.lb2 + " " + sampleSize.UB + " " + sampleSize.ub1 + " " + sampleSize.ub2 + " " + gap + " " + sampleSize.LNM2 + " " + sampleSize.lb21 + " " + sampleSize.lb22 + " " + sampleSize.UB2 + " " + sampleSize.ub21 + " " + sampleSize.ub22 + " " + gap2 + "\n";
                 bf.write(s);
                 bf.flush();
             }

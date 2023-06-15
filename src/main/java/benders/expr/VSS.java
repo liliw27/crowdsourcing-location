@@ -214,64 +214,101 @@ public class VSS {
         GlobalVariable.isReadMatrix = true;
 
 
-        Instance instance = Reader.readInstance(file, 50, 0, 10, 20, 40, 0.5);
-
-        JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
-        for (int i = 0; i <= 4; i++) {
-            List<Scenario> scenarios = Util.generateScenarios(instance, i * 0.25, i * 0.25, 50, randomGenerator);
-            instance.setMultipleCut(true);
-            GlobalVariable.isDemandTricky = true;
-            String vs = vss.vs(instance, scenarios);
-
-
-            Scenario scenario = vss.getDeterminantScenario(instance);
-            double vDET0 = vss.vSingleScenario(instance, scenario);
-            double vDET = Util.evaluate(instance, vss.solution, scenarios);
-            double vDET2 = 0;
-            double vPI = 0;
-            double vMax = -Double.MAX_VALUE;
-            double vMin = Double.MAX_VALUE;
-
-            for (int xi = 0; xi < scenarios.size(); xi++) {
-                Scenario scenario2 = scenarios.get(xi);
-                double pro = scenario2.getProbability();
-                scenario2.setIndex(0);
-                scenario2.setProbability(1);
-                vPI += vss.vSingleScenario(instance, scenario2);
-                scenario2.setIndex(xi);
-                scenario2.setProbability(pro);
-                double vd = Util.evaluate(instance, vss.solution, scenarios);
-                if (vMax < vd) {
-                    vMax = vd;
+        Instance instance=null;
+        for(int i=1;i<=5;i++){
+            for(int j=1;j<=5;j++){
+                double lambdaW=0;
+                int numW=0;
+                if(j==1){
+                    lambdaW=1.0/3;
                 }
-                if (vMin > vd) {
-                    vMin = vd;
+                if(j==2){
+                    lambdaW=1.0/2;
                 }
-                vDET2 += vd;
+                if(j==3){
+                    lambdaW=1;
+                }
+                if(j==4){
+                    lambdaW=2;
+                }
+                if(j==5){
+                    lambdaW=3;
+                }
+                if(i==1){
+                    numW=60;
+                }
+                if(i==2){
+                    numW=40;
+                }
+                if(i==3){
+                    numW=20;
+                }
+                if(i==4){
+                    numW=10;
+                }
+                if(i==5){
+                    numW=7;
+                }
+                instance = Reader.readInstance(file, 50, 0, 10, 20, numW, lambdaW);
+                JDKRandomGenerator randomGenerator = new JDKRandomGenerator(17);
+                for (int k = 2; k <= 2; k++) {
+                    List<Scenario> scenarios = Util.generateScenarios(instance, k * 0.25, k * 0.25, 50, randomGenerator);
+                    instance.setMultipleCut(true);
+                    GlobalVariable.isDemandTricky = true;
+                    String vs = vss.vs(instance, scenarios);
+                    String s="";
+
+//            Scenario scenario = vss.getDeterminantScenario(instance);
+//            double vDET0 = vss.vSingleScenario(instance, scenario);
+//            double vDET = Util.evaluate(instance, vss.solution, scenarios);
+//            double vDET2 = 0;
+//            double vPI = 0;
+//            double vMax = -Double.MAX_VALUE;
+//            double vMin = Double.MAX_VALUE;
+//
+//            for (int xi = 0; xi < scenarios.size(); xi++) {
+//                Scenario scenario2 = scenarios.get(xi);
+//                double pro = scenario2.getProbability();
+//                scenario2.setIndex(0);
+//                scenario2.setProbability(1);
+//                vPI += vss.vSingleScenario(instance, scenario2);
+//                scenario2.setIndex(xi);
+//                scenario2.setProbability(pro);
+//                double vd = Util.evaluate(instance, vss.solution, scenarios);
+//                if (vMax < vd) {
+//                    vMax = vd;
+//                }
+//                if (vMin > vd) {
+//                    vMin = vd;
+//                }
+//                vDET2 += vd;
+//            }
+//            vDET2 /= scenarios.size();
+//            vPI /= scenarios.size();
+//            System.out.println("vs: " + vs);
+//            System.out.println("vPI: " + vPI);
+//            System.out.println("vDET: " + vDET);
+//            System.out.println("vDET2: " + vDET);
+//            System.out.println("vMax: " + vMax);
+//            System.out.println("vMin: " + vMin);
+//            double gap = (vDET - vss.vs) / vDET * 100;
+//            double gap2 = (vDET2 - vss.vs) / vDET2 * 100;
+//            double gap4 = (vMax - vss.vs) / vMax * 100;
+//            double gap5 = (vMin - vss.vs) / vMin * 100;
+//            double gap3 = (vss.vs - vPI) / vss.vs * 100;
+//            System.out.println("relative gap: " + gap);
+//            System.out.println("relative gap2: " + gap2);
+//            System.out.println("relative gap3: " + gap3);
+//
+//            String s = vPI + " " + gap3 + " " + vDET + " " + gap + " " + vDET2 + " " + gap2 + " " + vMax + " " + gap4 + " " + vMin + " " + gap5 + " ";
+                    s += numW+" "+lambdaW+" "+vs+"\n";
+                    BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/vss.txt", true));
+                    bf.write(s);
+                    bf.flush();
+                }
             }
-            vDET2 /= scenarios.size();
-            vPI /= scenarios.size();
-            System.out.println("vs: " + vs);
-            System.out.println("vPI: " + vPI);
-            System.out.println("vDET: " + vDET);
-            System.out.println("vDET2: " + vDET);
-            System.out.println("vMax: " + vMax);
-            System.out.println("vMin: " + vMin);
-            double gap = (vDET - vss.vs) / vDET * 100;
-            double gap2 = (vDET2 - vss.vs) / vDET2 * 100;
-            double gap4 = (vMax - vss.vs) / vMax * 100;
-            double gap5 = (vMin - vss.vs) / vMin * 100;
-            double gap3 = (vss.vs - vPI) / vss.vs * 100;
-            System.out.println("relative gap: " + gap);
-            System.out.println("relative gap2: " + gap2);
-            System.out.println("relative gap3: " + gap3);
-
-            String s = vPI + " " + gap3 + " " + vDET + " " + gap + " " + vDET2 + " " + gap2 + " " + vMax + " " + gap4 + " " + vMin + " " + gap5 + " ";
-            s += vs+"\n";
-            BufferedWriter bf = new BufferedWriter(new FileWriter("output/expr/vss.txt", true));
-            bf.write(s);
-            bf.flush();
         }
+
 
     }
 

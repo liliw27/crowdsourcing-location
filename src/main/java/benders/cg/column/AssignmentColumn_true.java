@@ -69,7 +69,7 @@ public class AssignmentColumn_true extends AbstractColumn<LocationAssignment, Pr
 
     @Override
     public int hashCode() {
-        return Objects.hash( worker, customers, stationCandidate);
+        return Objects.hash(cost, worker, customers, stationCandidate);
     }
 
 //    @Override
